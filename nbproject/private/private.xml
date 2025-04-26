@@ -8,10 +8,11 @@
             <file>file:/C:/Users/ASPIRE%20I7/Documents/NetBeansProjects/firstProject/web/WEB-INF/web.xml</file>
             <file>file:/C:/Users/ASPIRE%20I7/Documents/NetBeansProjects/firstProject/web/displayStudent.jsp</file>
             <file>file:/C:/Users/ASPIRE%20I7/Documents/NetBeansProjects/firstProject/nbproject/build-impl.xml</file>
-            <file>file:/C:/Users/ASPIRE%20I7/Documents/NetBeansProjects/firstProject/web/studentsMainPage.jsp</file>
             <file>file:/C:/Users/ASPIRE%20I7/Documents/NetBeansProjects/firstProject/web/index.html</file>
             <file>file:/C:/Users/ASPIRE%20I7/Documents/NetBeansProjects/firstProject/src/java/com/iai/servlets/AddStudent.java</file>
-            <file>file:/C:/Users/ASPIRE%20I7/Documents/NetBeansProjects/firstProject/web/teacherMainPage.jsp</file>
+            <file>file:/C:/Users/ASPIRE%20I7/Documents/NetBeansProjects/firstProject/web/teacher/teacherMainPage.jsp</file>
+            <file>file:/C:/Users/ASPIRE%20I7/Documents/NetBeansProjects/firstProject/web/admin/adminMainPage.jsp</file>
+            <file>file:/C:/Users/ASPIRE%20I7/Documents/NetBeansProjects/firstProject/src/java/com/iai/servlets/AuthServlet.java</file>
         </group>
     </open-files>
 </project-private>

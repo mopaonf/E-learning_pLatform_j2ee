@@ -283,6 +283,60 @@ public class AuthServlet extends HttpServlet {
     private boolean authenticateUser(Connection conn, String username, String password, String role)
             throws SQLException {
         
+        // Special handling for students
+        if (role.equals("student")) {
+            // Log the authentication attempt
+            LOGGER.info("Attempting student authentication for email: " + username);
+            
+            String sql = "SELECT id, password_hash, password_salt FROM students WHERE email = ?";
+            
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, username);
+                ResultSet rs = stmt.executeQuery();
+                
+                if (rs.next()) {
+                    String storedHash = rs.getString("password_hash");
+                    String salt = rs.getString("password_salt");
+                    
+                    // Use the same hashing method as registration
+                    String hashedAttempt = hashWithSHA2(password + salt);
+                    
+                    // Log the hashing details for debugging
+                    LOGGER.info("Student auth - Password with salt: " + (password + salt));
+                    LOGGER.info("Student auth - Generated hash: " + hashedAttempt);
+                    LOGGER.info("Student auth - Stored hash: " + storedHash);
+                    
+                    return storedHash.equals(hashedAttempt);
+                }
+                LOGGER.warning("No student found with email: " + username);
+                return false;
+            }
+        }
+        
+        if (role.equals("admin")) {
+            // Special handling for admin authentication
+            String sql = "SELECT admin_id, password_hash, password_salt FROM administrators WHERE email = ?";
+            
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, username); // Using email for admin login
+                ResultSet rs = stmt.executeQuery();
+                
+                if (rs.next()) {
+                    String storedHash = rs.getString("password_hash");
+                    String salt = rs.getString("password_salt");
+                    
+                    // For admin, use the same hashing method as we stored in the database
+                    String hashedAttempt = hashWithSHA2(password + salt);
+                    LOGGER.info("Admin auth - Password with salt: " + (password + salt));
+                    LOGGER.info("Admin auth - Generated hash: " + hashedAttempt);
+                    LOGGER.info("Admin auth - Stored hash: " + storedHash);
+                    
+                    return storedHash.equals(hashedAttempt);
+                }
+                return false;
+            }
+        }
+        
         LOGGER.info("Attempting to authenticate user: " + username + " with role: " + role);
         
         String tableName, idColumn, emailColumn, passwordColumn, saltColumn;
@@ -298,15 +352,15 @@ public class AuthServlet extends HttpServlet {
                 break;
             case "student":
                 tableName = "students";
-                idColumn = "student_id";
-                emailColumn = "email";
+                idColumn = "id";           
+                emailColumn = "email";     // This is correct as per your table
                 passwordColumn = "password_hash";
                 saltColumn = "password_salt";
                 break;
             case "admin":
                 tableName = "administrators";
-                idColumn = "admin_id";
-                emailColumn = "username";
+                idColumn = "id";
+                emailColumn = "email";    // Changed from username to email
                 passwordColumn = "password_hash";
                 saltColumn = "password_salt";
                 break;
@@ -382,9 +436,36 @@ public class AuthServlet extends HttpServlet {
      */
     private void storeUserInSession(Connection conn, HttpSession session, String username, String role)
             throws SQLException {
+    if (role.equals("admin")) {
+        String sql = "SELECT admin_id, name, email, profile_image " +
+                    "FROM administrators " +
+                    "WHERE email = ?";  // Changed from username to email
         
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, username);
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next()) {
+                int adminId = rs.getInt("admin_id");
+                String name = rs.getString("name");
+                String email = rs.getString("email");
+                String profileImage = rs.getString("profile_image");
+                
+                session.setAttribute("userId", adminId);
+                session.setAttribute("username", username);
+                session.setAttribute("adminName", name);
+                session.setAttribute("adminEmail", email);
+                session.setAttribute("adminImage", profileImage);
+                session.setAttribute("role", role);
+                session.setAttribute("adminId", adminId);
+                
+                session.setMaxInactiveInterval(30 * 60);
+                logUserAccess(conn, adminId, role);
+            }
+        }
+    } else {
         if (role.equals("teacher")) {
-            String sql = "SELECT t.id, t.name, t.email, d.name as department_name " +
+            String sql = "SELECT t.id, t.name, t.email, t.profile_image, d.name as department_name " +
                         "FROM teachers t " +
                         "LEFT JOIN departments d ON t.department_id = d.id " +
                         "WHERE t.email = ?";
@@ -397,12 +478,14 @@ public class AuthServlet extends HttpServlet {
                     int userId = rs.getInt("id");
                     String name = rs.getString("name");
                     String departmentName = rs.getString("department_name");
+                    String profileImage = rs.getString("profile_image");
                     
                     // Store user information in session
                     session.setAttribute("userId", userId);
                     session.setAttribute("username", username);
                     session.setAttribute("teacherName", name);
                     session.setAttribute("departmentName", departmentName);
+                    session.setAttribute("teacherImage", profileImage);
                     session.setAttribute("role", role);
                     session.setAttribute("teacherId", userId);
                     
@@ -414,71 +497,106 @@ public class AuthServlet extends HttpServlet {
                 }
             }
         } else {
-            String tableName, idColumn, nameColumn, usernameColumn;
-        
-            // Determine table and column names based on role
-            switch (role) {
-                case "teacher":
-                    tableName = "teachers";
-                    idColumn = "id";           // Changed from teacher_id to id
-                    nameColumn = "name";       // Changed from surname to name
-                    usernameColumn = "email";
-                    break;
-                case "student":
-                    tableName = "students";
-                    idColumn = "student_id";
-                    nameColumn = "surname";
-                    usernameColumn = "email";
-                    break;
-                case "admin":
-                    tableName = "administrators";
-                    idColumn = "admin_id";
-                    nameColumn = "name";
-                    usernameColumn = "username";
-                    break;
-                default:
-                    return;
-            }
-            
-            String sql = "SELECT " + idColumn + ", " + nameColumn + 
-                        " FROM " + tableName + " WHERE " + usernameColumn + " = ?";
-            
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, username);
-                ResultSet rs = stmt.executeQuery();
+            if (role.equals("student")) {
+                String sql = "SELECT s.id, s.full_name, s.email, s.profile_image, s.level " +
+                            "FROM students s " +
+                            "WHERE s.email = ?";
                 
-                if (rs.next()) {
-                    int userId = rs.getInt(idColumn);
-                    String name = rs.getString(nameColumn);
+                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                    stmt.setString(1, username);  // username here is actually the email
+                    ResultSet rs = stmt.executeQuery();
                     
-                    // Store user information in session
-                    session.setAttribute("userId", userId);
-                    session.setAttribute("username", username);
-                    session.setAttribute("name", name);
-                    session.setAttribute("role", role);
-                    
-                    // Set role-specific attributes
-                    switch (role) {
-                        case "student":
-                            session.setAttribute("studentId", userId);
-                            break;
-                        case "teacher":
-                            session.setAttribute("teacherId", userId);
-                            break;
-                        case "admin":
-                            session.setAttribute("adminId", userId);
-                            break;
+                    if (rs.next()) {
+                        int userId = rs.getInt("id");
+                        String fullName = rs.getString("full_name");
+                        String email = rs.getString("email");
+                        String profileImage = rs.getString("profile_image");
+                        String level = rs.getString("level");
+                        
+                        // Store user information in session with correct field names
+                        session.setAttribute("userId", userId);
+                        session.setAttribute("email", email);         // changed from username
+                        session.setAttribute("fullName", fullName);   // changed from studentName
+                        session.setAttribute("profileImage", profileImage);
+                        session.setAttribute("level", level);
+                        session.setAttribute("role", role);
+                        session.setAttribute("studentId", userId);
+                        
+                        // Set session timeout (30 minutes)
+                        session.setMaxInactiveInterval(30 * 60);
+                        
+                        // Log access time
+                        logUserAccess(conn, userId, role);
                     }
+                }
+            } else {
+                String tableName, idColumn, nameColumn, usernameColumn;
+            
+                // Determine table and column names based on role
+                switch (role) {
+                    case "teacher":
+                        tableName = "teachers";
+                        idColumn = "id";           // Changed from teacher_id to id
+                        nameColumn = "name";       // Changed from surname to name
+                        usernameColumn = "email";
+                        break;
+                    case "student":
+                        tableName = "students";
+                        idColumn = "id";
+                        nameColumn = "full_name";
+                        usernameColumn = "email";
+                        break;
+                    case "admin":
+                        tableName = "administrators";
+                        idColumn = "admin_id";
+                        nameColumn = "name";
+                        usernameColumn = "username";
+                        break;
+                    default:
+                        return;
+                }
+                
+                String sql = "SELECT " + idColumn + ", " + nameColumn + 
+                            " FROM " + tableName + " WHERE " + usernameColumn + " = ?";
+                
+                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                    stmt.setString(1, username);
+                    ResultSet rs = stmt.executeQuery();
                     
-                    // Set session timeout (30 minutes)
-                    session.setMaxInactiveInterval(30 * 60);
-                    
-                    // Log access time
-                    logUserAccess(conn, userId, role);
+                    if (rs.next()) {
+                        int userId = rs.getInt(idColumn);
+                        String name = rs.getString(nameColumn);
+                        
+                        // Store user information in session
+                        session.setAttribute("userId", userId);
+                        session.setAttribute("username", username);
+                        session.setAttribute("name", name);
+                        session.setAttribute("role", role);
+                        
+                        // Set role-specific attributes
+                        switch (role) {
+                            case "student":
+                                session.setAttribute("studentId", userId);
+                                break;
+                            case "teacher":
+                                session.setAttribute("teacherId", userId);
+                                break;
+                            case "admin":
+                                session.setAttribute("adminId", userId);
+                                break;
+                        }
+                        
+                        // Set session timeout (30 minutes)
+                        session.setMaxInactiveInterval(30 * 60);
+                        
+                        // Log access time
+                        logUserAccess(conn, userId, role);
+                    }
                 }
             }
         }
     }
+}
     
     /**
      * Log user access time for audit purposes
@@ -534,14 +652,15 @@ public class AuthServlet extends HttpServlet {
     private boolean createStudentAccount(Connection conn, String fullname, String email, String phone, 
                                         String hashedPassword, String salt) throws SQLException {
         
-        String sql = "INSERT INTO students (surname, email, tel, password_hash, password_salt, registration_date) " +
-                    "VALUES (?, ?, ?, ?, ?, NOW())";
+        String sql = "INSERT INTO students (full_name, email, tel, password_hash, password_salt, status) " +
+                    "VALUES (?, ?, ?, ?, ?, 'active')";
         
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, fullname);
             stmt.setString(2, email);
             stmt.setString(3, phone);
-            stmt.setString(4, hashedPassword);
+            // Make sure to use the same hashing method as authentication
+            stmt.setString(4, hashWithSHA2(hashedPassword + salt));
             stmt.setString(5, salt);
             
             int rowsAffected = stmt.executeUpdate();
@@ -565,9 +684,8 @@ public class AuthServlet extends HttpServlet {
     private String hashPassword(String password, byte[] salt) throws NoSuchAlgorithmException {
         MessageDigest md = MessageDigest.getInstance("SHA-256");
         md.update(salt);
-        byte[] hashedPassword = md.digest(password.getBytes());
+        byte[] hashedPassword = md.digest(password.getBytes(StandardCharsets.UTF_8));
         
-        // Convert to hexadecimal string
         StringBuilder sb = new StringBuilder();
         for (byte b : hashedPassword) {
             sb.append(String.format("%02x", b));

@@ -1,4 +1,5 @@
-<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@page contentType="text/html" pageEncoding="UTF-8"%> <%@ taglib prefix="c"
+uri="http://java.sun.com/jsp/jstl/core" %>
 <!DOCTYPE html>
 <html lang="en">
    <head>
@@ -132,7 +133,7 @@
          .toggle-sidebar {
             position: absolute;
             top: 20px;
-            right: -15px;
+            right: 7px;
             width: 30px;
             height: 30px;
             background-color: var(--primary-color);
@@ -696,15 +697,26 @@
          </div>
          <div class="sidebar-header">
             <div class="user-profile">
-               <img
-                  src="/api/placeholder/300/300"
-                  alt="Admin Profile"
-                  class="profile-pic"
-               />
+               <c:choose>
+                  <c:when test="${not empty adminImage}">
+                     <img
+                        src="${pageContext.request.contextPath}${adminImage}"
+                        alt="Admin Profile"
+                        class="profile-pic"
+                     />
+                  </c:when>
+                  <c:otherwise>
+                     <img
+                        src="${pageContext.request.contextPath}/assets/images/default-avatar.png"
+                        alt="Default Profile"
+                        class="profile-pic"
+                     />
+                  </c:otherwise>
+               </c:choose>
                <span class="online-status"></span>
                <div class="profile-info">
-                  <h4>Admin Panel</h4>
-                  <p>System Administrator</p>
+                  <h4>${adminName}</h4>
+                  <p>${adminEmail}</p>
                </div>
             </div>
          </div>
@@ -1025,6 +1037,19 @@
                document.getElementById(pageId).classList.add('active');
             });
          });
+
+         // Add logout functionality
+         function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+               window.location.href =
+                  '${pageContext.request.contextPath}/AuthServlet?action=logout';
+            }
+         }
+
+         // Add click handler to logout button
+         document
+            .querySelector('.action-icon:last-child')
+            .addEventListener('click', logout);
       </script>
    </body>
 </html>

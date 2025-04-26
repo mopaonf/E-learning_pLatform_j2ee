@@ -21,7 +21,7 @@ import java.util.Map;
  * Main servlet to handle all admin dashboard operations
  * Routes requests based on action parameter to appropriate handlers
  */
-@WebServlet("/admin/*")
+@WebServlet("/admin/dashboard")
 public class AdminDashboardServlet extends HttpServlet {
     private static final String URL = "jdbc:mysql://localhost:3306/j2ee";
     private static final String USER = "root";
@@ -43,58 +43,47 @@ public class AdminDashboardServlet extends HttpServlet {
             return;
         }
 
-        String pathInfo = request.getPathInfo();
-        if (pathInfo == null) pathInfo = "/dashboard";
-        
-        switch (pathInfo) {
-            case "/dashboard":
-                showDashboard(request, response);
-                break;
-            case "/teachers":
-                listTeachers(request, response);
-                break;
-            case "/students":
-                listStudents(request, response);
-                break;
-            case "/courses":
-                listCourses(request, response);
-                break;
-            case "/departments":
-                listDepartments(request, response);
-                break;
-            case "/reports":
-                generateReports(request, response);
-                break;
-            case "/settings":
-                showSettings(request, response);
-                break;
-            case "/addTeacher":
-                showAddTeacherForm(request, response);
-                break;
-            case "/addStudent":
-                showAddStudentForm(request, response);
-                break;
-            case "/addCourse":
-                showAddCourseForm(request, response);
-                break;
-            case "/addDepartment":
-                showAddDepartmentForm(request, response);
-                break;
-            case "/editTeacher":
-                showEditTeacherForm(request, response);
-                break;
-            case "/editStudent":
-                showEditStudentForm(request, response);
-                break;
-            case "/editCourse":
-                showEditCourseForm(request, response);
-                break;
-            case "/editDepartment":
-                showEditDepartmentForm(request, response);
-                break;
-            default:
-                response.sendError(HttpServletResponse.SC_NOT_FOUND);
-                break;
+        int adminId = (int) session.getAttribute("adminId");
+        String action = request.getParameter("action");
+
+        try {
+            Connection conn = getConnection();
+            // Load admin profile information
+            loadAdminProfile(request, adminId, conn);
+
+            if (action == null) {
+                // Load main dashboard data
+                loadDashboardData(request, adminId);
+                request.getRequestDispatcher("/admin/adminMainPage.jsp").forward(request, response);
+            } else {
+                switch (action) {
+                    case "loadTeachers":
+                        loadTeachers(request, response, adminId, conn);
+                        break;
+                    case "loadStudents":
+                        loadStudents(request, response, adminId, conn);
+                        break;
+                    case "loadCourses":
+                        loadCourses(request, response, adminId, conn);
+                        break;
+                    case "loadDepartments":
+                        loadDepartments(request, response, adminId, conn);
+                        break;
+                    case "loadReports":
+                        loadReports(request, response, adminId, conn);
+                        break;
+                    case "loadSettings":
+                        loadSettings(request, response, adminId, conn);
+                        break;
+                    default:
+                        loadDashboardData(request, adminId);
+                        request.getRequestDispatcher("adminMainPage.jsp").forward(request, response);
+                }
+            }
+            conn.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.sendRedirect("../error.jsp");
         }
     }
     
@@ -151,7 +140,7 @@ public class AdminDashboardServlet extends HttpServlet {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND);
                 break;
         }
-    }
+    }   
     
     /**
      * Show the main dashboard with statistics
@@ -1216,5 +1205,49 @@ public class AdminDashboardServlet extends HttpServlet {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    private void loadAdminProfile(HttpServletRequest request, int adminId, Connection conn) {
+        // Stub implementation for loading admin profile
+        request.setAttribute("adminName", "Admin Name");
+        request.setAttribute("adminEmail", "admin@eduteach.com");
+    }
+
+    private void loadDashboardData(HttpServletRequest request, int adminId) {
+        // Stub implementation for loading dashboard data
+        request.setAttribute("teacherCount", 10);
+        request.setAttribute("studentCount", 100);
+        request.setAttribute("courseCount", 20);
+        request.setAttribute("departmentCount", 5);
+    }
+
+    private void loadTeachers(HttpServletRequest request, HttpServletResponse response, int adminId, Connection conn) {
+        // Stub implementation for loading teachers
+        request.setAttribute("teachers", new ArrayList<>());
+    }
+
+    private void loadStudents(HttpServletRequest request, HttpServletResponse response, int adminId, Connection conn) {
+        // Stub implementation for loading students
+        request.setAttribute("students", new ArrayList<>());
+    }
+
+    private void loadCourses(HttpServletRequest request, HttpServletResponse response, int adminId, Connection conn) {
+        // Stub implementation for loading courses
+        request.setAttribute("courses", new ArrayList<>());
+    }
+
+    private void loadDepartments(HttpServletRequest request, HttpServletResponse response, int adminId, Connection conn) {
+        // Stub implementation for loading departments
+        request.setAttribute("departments", new ArrayList<>());
+    }
+
+    private void loadReports(HttpServletRequest request, HttpServletResponse response, int adminId, Connection conn) {
+        // Stub implementation for loading reports
+        request.setAttribute("reports", new ArrayList<>());
+    }
+
+    private void loadSettings(HttpServletRequest request, HttpServletResponse response, int adminId, Connection conn) {
+        // Stub implementation for loading settings
+        request.setAttribute("settings", new HashMap<>());
     }
 }

@@ -396,8 +396,9 @@ I7 --%> <%@page contentType="text/html" pageEncoding="UTF-8"%>
                   method="post"
                   style="display: none"
                >
-                  <input type="hidden" name="action" value="signup" />
-                  <input type="hidden" name="role" value="student" />
+               <input type="hidden" name="action" value="signup" />
+               <input type="hidden" name="csrfToken" value="${csrfToken}" />
+                  
 
                   <div class="input-group">
                      <label for="fullname">Full Name</label>

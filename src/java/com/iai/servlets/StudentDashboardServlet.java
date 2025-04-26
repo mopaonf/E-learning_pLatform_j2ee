@@ -51,7 +51,7 @@ public class StudentDashboardServlet extends HttpServlet {
             return;
         }
         
-        request.getRequestDispatcher("/student/studentMainPage.jsp").forward(request, response);
+        request.getRequestDispatcher("studentMainPage.jsp").forward(request, response);
     }
 
     /**

@@ -14,6 +14,41 @@ CREATE TABLE IF NOT EXISTS administrators (
     status ENUM('active', 'inactive') DEFAULT 'active'
 );
 
+-- Update administrators table to include profile image
+ALTER TABLE administrators 
+ADD COLUMN profile_image VARCHAR(255),
+ALTER TABLE administrators 
+ADD COLUMN department_id INT,
+ADD FOREIGN KEY (department_id) REFERENCES departments(id);
+
+-- Insert default admin
+INSERT INTO administrators (username, name, email, password_hash, password_salt, status, profile_image)
+VALUES ('admin', 'System Administrator', 'admin@eduteach.com', 
+        SHA2('admin123salt', 256), 'salt', 'active', '/assets/images/admin-profile.jpg')
+ON DUPLICATE KEY UPDATE username=username;
+
+-- Update admin credentials to match the login attempt
+UPDATE administrators 
+SET password_hash = SHA2('admin123salt', 256),
+    password_salt = 'salt',
+    email = 'admin@eduteach.com',
+    name = 'System Administrator',
+    status = 'active'
+WHERE email = 'admin@eduteach.com';
+
+-- If no admin exists, insert one
+INSERT INTO administrators (username, name, email, password_hash, password_salt, status)
+SELECT 'admin', 'System Administrator', 'admin@eduteach.com', 
+       SHA2('admin123salt', 256), 'salt', 'active'
+WHERE NOT EXISTS (
+    SELECT 1 FROM administrators WHERE email = 'admin@eduteach.com'
+);
+
+-- Verify admin credentials
+SELECT admin_id, email, password_hash, password_salt 
+FROM administrators 
+WHERE email = 'admin@eduteach.com';
+
 -- Create departments table
 CREATE TABLE IF NOT EXISTS departments (
     id INT PRIMARY KEY AUTO_INCREMENT,
@@ -60,6 +95,11 @@ SET name = 'Dr. Sarah Johnson',
     department_id = 1  -- Science Department
 WHERE email = 'sarah.johnson@eduteach.com';
 
+-- Update Sarah Johnson's profile image path
+UPDATE teachers 
+SET profile_image = '/assets/images/sarah-johnson.jpg'
+WHERE email = 'sarah.johnson@eduteach.com';
+
 -- Verify the teacher information
 SELECT t.id, t.name, t.email, d.name as department_name 
 FROM teachers t 
@@ -77,9 +117,7 @@ ADD FOREIGN KEY (head_id) REFERENCES teachers(id);
 -- Create students table
 CREATE TABLE IF NOT EXISTS students (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    surname VARCHAR(100) NOT NULL,
-    first_name VARCHAR(50) NOT NULL,
-    last_name VARCHAR(50) NOT NULL,
+    full_name VARCHAR(150) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     tel VARCHAR(20),
     gender ENUM('male', 'female', 'other'),
@@ -97,6 +135,23 @@ CREATE TABLE IF NOT EXISTS students (
     enrollment_date DATE,
     status ENUM('active', 'inactive') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert test student with properly hashed password (password: student123)
+INSERT INTO students (
+    full_name, 
+    email, 
+    tel, 
+    password_hash, 
+    password_salt, 
+    status
+) VALUES (
+    'Rico Simons', 
+    'rico@gmail.com',
+    '123-456-7890',
+    SHA2(CONCAT('rico123', 'salt'), 256),
+    'salt',
+    'active'
 );
 
 -- Create courses table

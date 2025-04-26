@@ -647,7 +647,7 @@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
                <c:choose>
                   <c:when test="${not empty teacherImage}">
                      <img
-                        src="${teacherImage}"
+                        src="${pageContext.request.contextPath}${teacherImage}"
                         alt="Teacher Profile"
                         class="profile-pic"
                      />

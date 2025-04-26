@@ -1,4 +1,5 @@
-<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@page contentType="text/html" pageEncoding="UTF-8"%> <%@ taglib prefix="c"
+uri="http://java.sun.com/jsp/jstl/core" %>
 <!DOCTYPE html>
 <html lang="en">
    <head>
@@ -132,7 +133,7 @@
          .toggle-sidebar {
             position: absolute;
             top: 20px;
-            right: -15px;
+            right: 7px;
             width: 30px;
             height: 30px;
             background-color: var(--primary-color);
@@ -199,7 +200,7 @@
             position: relative;
             cursor: pointer;
             color: #6c757d;
-            transition: var(--transition);
+            transition: var (--transition);
          }
 
          .action-icon:hover {
@@ -710,15 +711,26 @@
          </div>
          <div class="sidebar-header">
             <div class="user-profile">
-               <img
-                  src="/api/placeholder/300/300"
-                  alt="Student Profile"
-                  class="profile-pic"
-               />
+               <c:choose>
+                  <c:when test="${not empty profileImage}">
+                     <img
+                        src="${profileImage}"
+                        alt="Student Profile"
+                        class="profile-pic"
+                     />
+                  </c:when>
+                  <c:otherwise>
+                     <img
+                        src="${pageContext.request.contextPath}/assets/images/default-avatar.jpg"
+                        alt="Default Profile"
+                        class="profile-pic"
+                     />
+                  </c:otherwise>
+               </c:choose>
                <span class="online-status"></span>
                <div class="profile-info">
-                  <h4>John Doe</h4>
-                  <p>Student ID: ST2025001</p>
+                  <h4>${fullName}</h4>
+                  <p>Level: ${level}</p>
                </div>
             </div>
          </div>
@@ -776,7 +788,7 @@
             <div class="action-icon">
                <i class="fas fa-question-circle fa-lg"></i>
             </div>
-            <div class="action-icon">
+            <div class="action-icon" onclick="logout()">
                <i class="fas fa-sign-out-alt fa-lg"></i>
             </div>
          </div>
@@ -1198,6 +1210,36 @@
                // Show the selected page
                const pageId = item.getAttribute('data-page');
                document.getElementById(pageId).classList.add('active');
+            });
+         });
+
+         // Logout function
+         function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+               window.location.href =
+                  '${pageContext.request.contextPath}/AuthServlet?action=logout';
+            }
+         }
+
+         // Display user info from session when page loads
+         document.addEventListener('DOMContentLoaded', function () {
+            // These values come from the session attributes we set in AuthServlet
+            const userFullName = '${fullName}';
+            const userEmail = '${email}';
+            const userLevel = '${level}';
+
+            // Update the UI with user info
+            document.querySelector('.profile-info h4').textContent =
+               userFullName || 'Student Name';
+            document.querySelector('.profile-info p').textContent = `Level: ${
+               userLevel || 'N/A'
+            }`;
+
+            // Log to console for debugging
+            console.log('User Info:', {
+               fullName: userFullName,
+               email: userEmail,
+               level: userLevel,
             });
          });
       </script>
