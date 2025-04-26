@@ -730,7 +730,7 @@ uri="http://java.sun.com/jsp/jstl/core" %>
                <span class="online-status"></span>
                <div class="profile-info">
                   <h4>${fullName}</h4>
-                  <p>Level: ${level}</p>
+                  <p>Level: Level ${level}</p>
                </div>
             </div>
          </div>

@@ -35,58 +35,22 @@ public class AdminDashboardServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-            
-        HttpSession session = request.getSession();
-        // Check if user is logged in and is admin
-        if (session.getAttribute("adminId") == null) {
-            response.sendRedirect("../login.jsp");
-            return;
-        }
-
-        int adminId = (int) session.getAttribute("adminId");
-        String action = request.getParameter("action");
-
-        try {
-            Connection conn = getConnection();
-            // Load admin profile information
-            loadAdminProfile(request, adminId, conn);
-
-            if (action == null) {
-                // Load main dashboard data
-                loadDashboardData(request, adminId);
-                request.getRequestDispatcher("/admin/adminMainPage.jsp").forward(request, response);
-            } else {
-                switch (action) {
-                    case "loadTeachers":
-                        loadTeachers(request, response, adminId, conn);
-                        break;
-                    case "loadStudents":
-                        loadStudents(request, response, adminId, conn);
-                        break;
-                    case "loadCourses":
-                        loadCourses(request, response, adminId, conn);
-                        break;
-                    case "loadDepartments":
-                        loadDepartments(request, response, adminId, conn);
-                        break;
-                    case "loadReports":
-                        loadReports(request, response, adminId, conn);
-                        break;
-                    case "loadSettings":
-                        loadSettings(request, response, adminId, conn);
-                        break;
-                    default:
-                        loadDashboardData(request, adminId);
-                        request.getRequestDispatcher("adminMainPage.jsp").forward(request, response);
-                }
-            }
-            conn.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
-            response.sendRedirect("../error.jsp");
-        }
+    HttpSession session = request.getSession();
+    if (session.getAttribute("adminId") == null) {
+        response.sendRedirect("../login.jsp");
+        return;
     }
-    
+
+    try (Connection conn = getConnection()) {
+        List<Map<String, Object>> teachers = getTeachers(conn);
+        request.setAttribute("teachers", teachers);
+        request.getRequestDispatcher("/admin/adminMainPage.jsp").forward(request, response);
+    } catch (SQLException e) {
+        e.printStackTrace();
+        response.sendRedirect("../error.jsp");
+    }
+}
+
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -212,45 +176,6 @@ public class AdminDashboardServlet extends HttpServlet {
         } catch (SQLException e) {
             // Log error
             e.printStackTrace();
-        } finally {
-            closeResources(conn, stmt, rs);
-        }
-    }
-    
-    /**
-     * List all teachers
-     */
-    private void listTeachers(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        Connection conn = null;
-        PreparedStatement stmt = null;
-        ResultSet rs = null;
-        List<Map<String, String>> teachers = new ArrayList<>();
-        
-        try {
-            conn = getConnection();
-            stmt = conn.prepareStatement(
-                "SELECT t.id, t.name, d.name as department, t.email, t.contact, t.status " +
-                "FROM teachers t JOIN departments d ON t.department_id = d.id"
-            );
-            rs = stmt.executeQuery();
-            
-            while (rs.next()) {
-                Map<String, String> teacher = new HashMap<>();
-                teacher.put("id", rs.getString("id"));
-                teacher.put("name", rs.getString("name"));
-                teacher.put("department", rs.getString("department"));
-                teacher.put("email", rs.getString("email"));
-                teacher.put("contact", rs.getString("contact"));
-                teacher.put("status", rs.getString("status"));
-                teachers.add(teacher);
-            }
-            
-            request.setAttribute("teachers", teachers);
-            request.getRequestDispatcher("/admin/teachers.jsp").forward(request, response);
-            
-        } catch (SQLException e) {
-            handleSQLException(response, e);
         } finally {
             closeResources(conn, stmt, rs);
         }
@@ -1221,9 +1146,39 @@ public class AdminDashboardServlet extends HttpServlet {
         request.setAttribute("departmentCount", 5);
     }
 
-    private void loadTeachers(HttpServletRequest request, HttpServletResponse response, int adminId, Connection conn) {
-        // Stub implementation for loading teachers
-        request.setAttribute("teachers", new ArrayList<>());
+    private List<Map<String, Object>> getTeachers(Connection conn) throws SQLException {
+        List<Map<String, Object>> teachers = new ArrayList<>();
+        String sql = "SELECT t.*, d.name as department_name " +
+                    "FROM teachers t " +
+                    "LEFT JOIN departments d ON t.department_id = d.id " +
+                    "ORDER BY t.id";
+        
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                Map<String, Object> teacher = new HashMap<>();
+                teacher.put("id", rs.getInt("id"));
+                teacher.put("name", rs.getString("name"));
+                teacher.put("department", rs.getString("department_name"));
+                teacher.put("email", rs.getString("email"));
+                teacher.put("contact", rs.getString("contact"));
+                teacher.put("status", rs.getString("status"));
+                teachers.add(teacher);
+            }
+        }
+        return teachers;
+    }
+
+    private void loadTeachers(HttpServletRequest request, HttpServletResponse response, int adminId, Connection conn) 
+            throws ServletException, IOException {
+        try {
+            List<Map<String, Object>> teachers = getTeachers(conn);
+            request.setAttribute("teachers", teachers);
+            request.getRequestDispatcher("/admin/adminMainPage.jsp").forward(request, response);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.sendRedirect("../error.jsp");
+        }
     }
 
     private void loadStudents(HttpServletRequest request, HttpServletResponse response, int adminId, Connection conn) {

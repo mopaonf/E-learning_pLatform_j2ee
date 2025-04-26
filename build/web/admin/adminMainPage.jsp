@@ -1,5 +1,8 @@
 <%@page contentType="text/html" pageEncoding="UTF-8"%> <%@ taglib prefix="c"
-uri="http://java.sun.com/jsp/jstl/core" %>
+uri="http://java.sun.com/jsp/jstl/core" %> <% if
+(request.getAttribute("teachers") == null) {
+response.sendRedirect(request.getContextPath() + "/admin/dashboard"); return; }
+%>
 <!DOCTYPE html>
 <html lang="en">
    <head>
@@ -828,19 +831,31 @@ uri="http://java.sun.com/jsp/jstl/core" %>
                      </tr>
                   </thead>
                   <tbody>
-                     <tr>
-                        <td>T001</td>
-                        <td>Dr. Sarah Johnson</td>
-                        <td>Science</td>
-                        <td>sarah.j@eduteach.com</td>
-                        <td>123-456-7890</td>
-                        <td><span class="status active">Active</span></td>
-                        <td>
-                           <button class="btn-edit">Edit</button>
-                           <button class="btn-delete">Delete</button>
-                        </td>
-                     </tr>
-                     <!-- Add more teacher rows -->
+                     <c:forEach items="${teachers}" var="teacher">
+                        <tr>
+                           <td>${teacher.id}</td>
+                           <td>${teacher.name}</td>
+                           <td>${teacher.department}</td>
+                           <td>${teacher.email}</td>
+                           <td>${teacher.contact}</td>
+                           <td>
+                              <span class="status ${teacher.status}"
+                                 >${teacher.status}</span
+                              >
+                           </td>
+                           <td>
+                              <button class="btn-edit" data-id="${teacher.id}">
+                                 Edit
+                              </button>
+                              <button
+                                 class="btn-delete"
+                                 data-id="${teacher.id}"
+                              >
+                                 Delete
+                              </button>
+                           </td>
+                        </tr>
+                     </c:forEach>
                   </tbody>
                </table>
             </div>
