@@ -42,8 +42,22 @@ public class AdminDashboardServlet extends HttpServlet {
     }
 
     try (Connection conn = getConnection()) {
+        // Fetch departments
+        List<Map<String, Object>> departments = getDepartments(conn);
+        request.setAttribute("departments", departments);
+
+        // Fetch teachers
         List<Map<String, Object>> teachers = getTeachers(conn);
         request.setAttribute("teachers", teachers);
+
+        // Fetch students
+        List<Map<String, Object>> students = getStudents(conn);
+        request.setAttribute("students", students);
+
+        // Fetch courses
+        List<Map<String, Object>> courses = getCourses(conn);
+        request.setAttribute("courses", courses);
+
         request.getRequestDispatcher("/admin/adminMainPage.jsp").forward(request, response);
     } catch (SQLException e) {
         e.printStackTrace();
@@ -1169,6 +1183,27 @@ public class AdminDashboardServlet extends HttpServlet {
         return teachers;
     }
 
+    private List<Map<String, Object>> getStudents(Connection conn) throws SQLException {
+        List<Map<String, Object>> students = new ArrayList<>();
+        String sql = "SELECT id, full_name AS name, level, email, tel AS contact, gender, status FROM students ORDER BY id";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                Map<String, Object> student = new HashMap<>();
+                student.put("id", rs.getInt("id"));
+                student.put("name", rs.getString("name"));
+                student.put("level", rs.getString("level"));
+                student.put("email", rs.getString("email"));
+                student.put("contact", rs.getString("contact"));
+                student.put("gender", rs.getString("gender"));
+                student.put("status", rs.getString("status"));
+                students.add(student);
+            }
+        }
+        return students;
+    }
+
     private void loadTeachers(HttpServletRequest request, HttpServletResponse response, int adminId, Connection conn) 
             throws ServletException, IOException {
         try {
@@ -1204,5 +1239,50 @@ public class AdminDashboardServlet extends HttpServlet {
     private void loadSettings(HttpServletRequest request, HttpServletResponse response, int adminId, Connection conn) {
         // Stub implementation for loading settings
         request.setAttribute("settings", new HashMap<>());
+    }
+
+    private List<Map<String, Object>> getDepartments(Connection conn) throws SQLException {
+        List<Map<String, Object>> departments = new ArrayList<>();
+        String sql = "SELECT id, name, status FROM departments ORDER BY id";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> department = new HashMap<>();
+                    department.put("id", rs.getInt("id"));
+                    department.put("name", rs.getString("name"));
+                    department.put("status", rs.getString("status"));
+                    departments.add(department);
+                }
+            }
+        }
+        return departments;
+    }
+
+    private List<Map<String, Object>> getCourses(Connection conn) throws SQLException {
+        List<Map<String, Object>> courses = new ArrayList<>();
+        String sql = "SELECT c.id, c.title, c.course_code, d.name AS department, t.name AS teacher, c.status, " +
+                     "(SELECT COUNT(*) FROM course_enrollments WHERE course_id = c.id) AS student_count " +
+                     "FROM courses c " +
+                     "LEFT JOIN departments d ON c.department_id = d.id " +
+                     "LEFT JOIN teachers t ON c.teacher_id = t.id " +
+                     "ORDER BY c.id";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> course = new HashMap<>();
+                    course.put("id", rs.getInt("id"));
+                    course.put("title", rs.getString("title"));
+                    course.put("courseCode", rs.getString("course_code"));
+                    course.put("department", rs.getString("department"));
+                    course.put("teacher", rs.getString("teacher"));
+                    course.put("status", rs.getString("status"));
+                    course.put("studentCount", rs.getInt("student_count"));
+                    courses.add(course);
+                }
+            }
+        }
+        return courses;
     }
 }

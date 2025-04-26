@@ -27,7 +27,7 @@ import org.json.JSONObject;
  * 
  * @author Your Name
  */
-@WebServlet("/teacher/teacherDashboard")
+@WebServlet("/teacher/dashboard")
 public class TeacherDashboardServlet extends HttpServlet {
     
     private static final String DB_URL = "jdbc:mysql://localhost:3306/j2ee";
@@ -42,56 +42,36 @@ public class TeacherDashboardServlet extends HttpServlet {
             throws ServletException, IOException {
         
         HttpSession session = request.getSession();
-        // Check if user is logged in and is teacher
-        if (session.getAttribute("teacherId") == null) {
+        Integer teacherId = (Integer) session.getAttribute("teacherId");
+
+        if (teacherId == null) {
             response.sendRedirect("../login.jsp");
             return;
         }
-        
-        int teacherId = (int) session.getAttribute("teacherId");
-        String action = request.getParameter("action");
-        
-        try {
-            Connection conn = getConnection();
-            // Load teacher profile information
-            loadTeacherProfile(request, teacherId, conn);
-            
-            if (action == null) {
-                // Load main dashboard data
-                loadDashboardData(request, teacherId);
-                request.getRequestDispatcher("/teacher/teacherMainPage.jsp").forward(request, response);
-            } else {
-                switch (action) {
-                    case "loadCourses":
-                        loadCourses(request, response, teacherId);
-                        break;
-                    case "loadStudents":
-                        loadStudents(request, response, teacherId);
-                        break;
-                    case "loadAssignments":
-                        loadAssignments(request, response, teacherId);
-                        break;
-                    case "loadGrades":
-                        loadGrades(request, response, teacherId);
-                        break;
-                    case "loadCalendar":
-                        loadCalendarEvents(request, response, teacherId);
-                        break;
-                    case "loadMessages":
-                        loadMessages(request, response, teacherId);
-                        break;
-                    case "loadResources":
-                        loadResources(request, response, teacherId);
-                        break;
-                    case "loadTasks":
-                        loadTasks(request, response, teacherId);
-                        break;
-                    default:
-                        loadDashboardData(request, teacherId);
-                        request.getRequestDispatcher("teacherMainPage.jsp").forward(request, response);
-                }
-            }
-            conn.close();
+
+        try (Connection conn = getConnection()) {
+            // Fetch total students
+            int totalStudents = getTotalStudents(conn, teacherId);
+            request.setAttribute("totalStudents", totalStudents);
+
+            // Fetch active courses
+            int activeCourses = getActiveCourses(conn, teacherId);
+            request.setAttribute("activeCourses", activeCourses);
+
+            // Fetch courses taught by the teacher
+            List<Map<String, Object>> courses = getCoursesByTeacher(conn, teacherId);
+            request.setAttribute("courses", courses);
+
+            // Fetch students associated with the teacher's courses
+            List<Map<String, Object>> students = getStudentsByTeacher(conn, teacherId);
+            request.setAttribute("students", students);
+
+            // Fetch assignments
+            List<Map<String, Object>> assignments = getAssignmentsByTeacher(conn, teacherId);
+            request.setAttribute("assignments", assignments);
+
+            // Forward to teacher main page
+            request.getRequestDispatcher("/teacher/teacherMainPage.jsp").forward(request, response);
         } catch (SQLException e) {
             e.printStackTrace();
             response.sendRedirect("../error.jsp");
@@ -423,7 +403,7 @@ public class TeacherDashboardServlet extends HttpServlet {
                 response.setContentType("application/json");
                 response.getWriter().write(new JSONArray(courses).toString());
             } else {
-                request.getRequestDispatcher("teacherMainPage.jsp").forward(request, response);
+                request.getRequestDispatcher("/teacher/teacherMainPage.jsp").forward(request, response);
             }
         } catch (SQLException e) {
             handleError(response, "Error loading courses: " + e.getMessage());
@@ -849,34 +829,27 @@ public class TeacherDashboardServlet extends HttpServlet {
      * Adds a new assignment
      */
     private void addAssignment(HttpServletRequest request, HttpServletResponse response, int teacherId) 
-            throws ServletException, IOException {
-        try {
-            Connection conn = getConnection();
-            
-            String title = request.getParameter("title");
-            String description = request.getParameter("description");
-            String dueDate = request.getParameter("dueDate");
-            int courseId = Integer.parseInt(request.getParameter("courseId"));
-            
-            String sql = "INSERT INTO assignments (title, description, due_date, course_id) " +
-                        "VALUES (?, ?, ?, ?)";
-            
-            PreparedStatement stmt = conn.prepareStatement(sql);
+            throws IOException {
+        String title = request.getParameter("title");
+        String description = request.getParameter("description");
+        int courseId = Integer.parseInt(request.getParameter("courseId"));
+        String dueDate = request.getParameter("dueDate");
+
+        String sql = "INSERT INTO assignments (title, description, course_id, due_date) VALUES (?, ?, ?, ?)";
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, title);
             stmt.setString(2, description);
-            stmt.setString(3, dueDate);
-            stmt.setInt(4, courseId);
-            
-            int rowsAffected = stmt.executeUpdate();
-            conn.close();
-            
-            if (rowsAffected > 0) {
-                response.sendRedirect("teacherDashboard?action=loadAssignments&success=true");
-            } else {
-                handleError(response, "Failed to add assignment");
-            }
+            stmt.setInt(3, courseId);
+            stmt.setString(4, dueDate);
+            stmt.executeUpdate();
+
+            // Redirect back to the same page to avoid duplicate submissions
+            response.sendRedirect(request.getContextPath() + "/teacher/dashboard");
         } catch (SQLException e) {
-            handleError(response, "Error adding assignment: " + e.getMessage());
+            e.printStackTrace();
+            response.sendRedirect("../error.jsp");
         }
     }
     
@@ -1096,5 +1069,115 @@ public class TeacherDashboardServlet extends HttpServlet {
                 }
             }
         }
+    }
+
+    private List<Map<String, Object>> getCoursesByTeacher(Connection conn, int teacherId) throws SQLException {
+        List<Map<String, Object>> courses = new ArrayList<>();
+        String sql = "SELECT c.id, c.title, c.course_code, d.name AS department, " +
+                     "(SELECT COUNT(*) FROM course_enrollments WHERE course_id = c.id) AS student_count, " +
+                     "c.schedule, c.status " +
+                     "FROM courses c " +
+                     "LEFT JOIN departments d ON c.department_id = d.id " +
+                     "WHERE c.teacher_id = ?";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, teacherId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> course = new HashMap<>();
+                    course.put("id", rs.getInt("id"));
+                    course.put("title", rs.getString("title"));
+                    course.put("courseCode", rs.getString("course_code"));
+                    course.put("department", rs.getString("department"));
+                    course.put("studentCount", rs.getInt("student_count"));
+                    course.put("schedule", rs.getString("schedule"));
+                    course.put("status", rs.getString("status"));
+                    courses.add(course);
+                }
+            }
+        }
+        return courses;
+    }
+
+    private List<Map<String, Object>> getStudentsByTeacher(Connection conn, int teacherId) throws SQLException {
+        List<Map<String, Object>> students = new ArrayList<>();
+        String sql = "SELECT DISTINCT s.id, s.full_name, s.email, s.tel, s.gender, s.level " +
+                     "FROM students s " +
+                     "JOIN course_enrollments ce ON s.id = ce.student_id " +
+                     "JOIN courses c ON ce.course_id = c.id " +
+                     "WHERE c.teacher_id = ?";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, teacherId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> student = new HashMap<>();
+                    student.put("id", rs.getInt("id"));
+                    student.put("fullName", rs.getString("full_name"));
+                    student.put("email", rs.getString("email"));
+                    student.put("tel", rs.getString("tel"));
+                    student.put("gender", rs.getString("gender"));
+                    student.put("level", rs.getString("level"));
+                    students.add(student);
+                }
+            }
+        }
+        return students;
+    }
+
+    private int getTotalStudents(Connection conn, int teacherId) throws SQLException {
+        String sql = "SELECT COUNT(DISTINCT ce.student_id) AS total_students " +
+                     "FROM course_enrollments ce " +
+                     "JOIN courses c ON ce.course_id = c.id " +
+                     "WHERE c.teacher_id = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, teacherId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("total_students");
+                }
+            }
+        }
+        return 0;
+    }
+
+    private int getActiveCourses(Connection conn, int teacherId) throws SQLException {
+        String sql = "SELECT COUNT(*) AS active_courses " +
+                     "FROM courses " +
+                     "WHERE teacher_id = ? AND status = 'active'";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, teacherId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("active_courses");
+                }
+            }
+        }
+        return 0;
+    }
+
+    private List<Map<String, Object>> getAssignmentsByTeacher(Connection conn, int teacherId) throws SQLException {
+        List<Map<String, Object>> assignments = new ArrayList<>();
+        String sql = "SELECT a.id, a.title, a.description, a.due_date, a.created_at, c.title AS course_title " +
+                     "FROM assignments a " +
+                     "JOIN courses c ON a.course_id = c.id " +
+                     "WHERE c.teacher_id = ?";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, teacherId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> assignment = new HashMap<>();
+                    assignment.put("id", rs.getInt("id"));
+                    assignment.put("title", rs.getString("title"));
+                    assignment.put("description", rs.getString("description"));
+                    assignment.put("courseTitle", rs.getString("course_title"));
+                    assignment.put("dueDate", rs.getTimestamp("due_date").toString());
+                    assignment.put("createdAt", rs.getTimestamp("created_at").toString());
+                    assignments.add(assignment);
+                }
+            }
+        }
+        return assignments;
     }
 }

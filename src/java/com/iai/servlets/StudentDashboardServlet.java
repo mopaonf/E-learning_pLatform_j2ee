@@ -25,7 +25,7 @@ import java.util.Date;
  * 
  * @author Your Name
  */
-@WebServlet("/student/studentDashboard")
+@WebServlet("/student/dashboard")
 public class StudentDashboardServlet extends HttpServlet {
     private static final String URL = "jdbc:mysql://localhost:3306/j2ee";
     private static final String USER = "root";
@@ -43,15 +43,29 @@ public class StudentDashboardServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
         HttpSession session = request.getSession();
-        // Check if user is logged in and is student
-        if (session.getAttribute("studentId") == null) {
+        Integer studentId = (Integer) session.getAttribute("userId");
+
+        if (studentId == null) {
             response.sendRedirect("../login.jsp");
             return;
         }
-        
-        request.getRequestDispatcher("studentMainPage.jsp").forward(request, response);
+
+        try (Connection conn = getConnection()) {
+            // Fetch courses for the student
+            List<Map<String, Object>> courses = getStudentCourses(conn, studentId);
+            request.setAttribute("courses", courses);
+
+            // Fetch assignments for the student
+            List<Map<String, Object>> assignments = getStudentAssignments(conn, studentId);
+            request.setAttribute("assignments", assignments);
+
+            // Forward to student main page
+            request.getRequestDispatcher("/student/studentsMainPage.jsp").forward(request, response);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.sendRedirect("../error.jsp");
+        }
     }
 
     /**
@@ -955,6 +969,83 @@ public class StudentDashboardServlet extends HttpServlet {
      * Gets a connection to the database
      */
     private Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(URL, USER, PASSWORD);
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            return DriverManager.getConnection(URL, USER, PASSWORD);
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("Database driver not found", e);
+        }
+    }
+
+    private List<Map<String, Object>> getStudentCourses(Connection conn, int studentId) throws SQLException {
+        List<Map<String, Object>> courses = new ArrayList<>();
+        String sql = "SELECT c.id, c.title, c.course_code, d.name AS department, " +
+                    "t.name AS teacher_name, c.schedule, " +
+                    "(SELECT COUNT(*) FROM assignment_submissions as_sub " +
+                    "JOIN assignments a ON as_sub.assignment_id = a.id " +
+                    "WHERE a.course_id = c.id AND as_sub.student_id = ?) * 100.0 / " +
+                    "NULLIF((SELECT COUNT(*) FROM assignments WHERE course_id = c.id), 0) as progress " +
+                    "FROM courses c " +
+                    "JOIN course_enrollments ce ON c.id = ce.course_id " +
+                    "JOIN departments d ON c.department_id = d.id " +
+                    "JOIN teachers t ON c.teacher_id = t.id " +
+                    "WHERE ce.student_id = ? AND c.status = 'active'";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, studentId);
+            stmt.setInt(2, studentId);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> course = new HashMap<>();
+                    course.put("id", rs.getInt("id"));
+                    course.put("title", rs.getString("title"));
+                    course.put("courseCode", rs.getString("course_code"));
+                    course.put("department", rs.getString("department"));
+                    course.put("teacherName", rs.getString("teacher_name"));
+                    course.put("schedule", rs.getString("schedule"));
+                    
+                    // Handle null progress
+                    double progress = rs.getDouble("progress");
+                    course.put("progress", rs.wasNull() ? 0 : progress);
+                    
+                    courses.add(course);
+                }
+            }
+        }
+        return courses;
+    }
+
+    private List<Map<String, Object>> getStudentAssignments(Connection conn, int studentId) throws SQLException {
+        List<Map<String, Object>> assignments = new ArrayList<>();
+        String sql = "SELECT a.id, a.title, a.description, a.due_date, a.created_at, " +
+                     "c.title as course_title, " +
+                     "CASE WHEN as_sub.id IS NOT NULL THEN true ELSE false END as is_submitted " +
+                     "FROM assignments a " +
+                     "JOIN courses c ON a.course_id = c.id " +
+                     "JOIN course_enrollments ce ON c.id = ce.course_id " +
+                     "LEFT JOIN assignment_submissions as_sub ON a.id = as_sub.assignment_id " +
+                     "AND as_sub.student_id = ? " +
+                     "WHERE ce.student_id = ? " +
+                     "ORDER BY a.due_date DESC";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, studentId);
+            stmt.setInt(2, studentId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> assignment = new HashMap<>();
+                    assignment.put("id", rs.getInt("id"));
+                    assignment.put("title", rs.getString("title"));
+                    assignment.put("description", rs.getString("description"));
+                    assignment.put("courseTitle", rs.getString("course_title"));
+                    assignment.put("dueDate", rs.getTimestamp("due_date").toString());
+                    assignment.put("createdAt", rs.getTimestamp("created_at").toString());
+                    assignment.put("isSubmitted", rs.getBoolean("is_submitted"));
+                    assignments.add(assignment);
+                }
+            }
+        }
+        return assignments;
     }
 }

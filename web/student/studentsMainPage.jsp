@@ -1,5 +1,8 @@
 <%@page contentType="text/html" pageEncoding="UTF-8"%> <%@ taglib prefix="c"
-uri="http://java.sun.com/jsp/jstl/core" %>
+uri="http://java.sun.com/jsp/jstl/core" %> <% if
+(request.getAttribute("courses") == null) {
+response.sendRedirect(request.getContextPath() + "/student/dashboard"); return;
+} %>
 <!DOCTYPE html>
 <html lang="en">
    <head>
@@ -293,7 +296,7 @@ uri="http://java.sun.com/jsp/jstl/core" %>
          }
 
          .stat-icon.cyan {
-            background-color: var(--success-color);
+            background-color: var (--success-color);
          }
 
          .stat-icon.red {
@@ -871,12 +874,6 @@ uri="http://java.sun.com/jsp/jstl/core" %>
                                  Assignments</span
                               >
                            </div>
-                           <div class="course-progress">
-                              <div
-                                 class="progress-bar"
-                                 style="width: 75%"
-                              ></div>
-                           </div>
                         </div>
                      </div>
                      <div class="course-item">
@@ -898,12 +895,6 @@ uri="http://java.sun.com/jsp/jstl/core" %>
                                  ><i class="fas fa-tasks"></i> 12
                                  Assignments</span
                               >
-                           </div>
-                           <div class="course-progress">
-                              <div
-                                 class="progress-bar"
-                                 style="width: 60%"
-                              ></div>
                            </div>
                         </div>
                      </div>
@@ -960,51 +951,33 @@ uri="http://java.sun.com/jsp/jstl/core" %>
             <h2 class="page-title">My Courses</h2>
             <div class="card">
                <div class="card-header">
-                  <h3 class="card-title">Active Courses</h3>
+                  <h3 class="card-title">Enrolled Courses</h3>
                </div>
                <div class="course-list">
-                  <div class="course-item">
-                     <div class="course-thumbnail">
-                        <i class="fas fa-atom"></i>
-                     </div>
-                     <div class="course-info">
-                        <h4 class="course-title">Advanced Physics</h4>
-                        <div class="course-meta">
-                           <span
-                              ><i class="fas fa-user-graduate"></i> 32
-                              Students</span
-                           >
-                           <span
-                              ><i class="fas fa-clock"></i> Tue, Thu
-                              10:00-11:30</span
-                           >
-                           <span
-                              ><i class="fas fa-tasks"></i> 8 Assignments</span
-                           >
+                  <c:forEach items="${courses}" var="course">
+                     <div class="course-item">
+                        <div class="course-thumbnail">
+                           <i class="fas fa-book"></i>
+                        </div>
+                        <div class="course-info">
+                           <h4 class="course-title">${course.title}</h4>
+                           <div class="course-meta">
+                              <span
+                                 ><i class="fas fa-user-tie"></i>
+                                 ${course.teacherName}</span
+                              >
+                              <span
+                                 ><i class="fas fa-building"></i>
+                                 ${course.department}</span
+                              >
+                              <span
+                                 ><i class="fas fa-clock"></i>
+                                 ${course.schedule}</span
+                              >
+                           </div>
                         </div>
                      </div>
-                  </div>
-                  <div class="course-item">
-                     <div class="course-thumbnail">
-                        <i class="fas fa-flask"></i>
-                     </div>
-                     <div class="course-info">
-                        <h4 class="course-title">Chemistry Lab</h4>
-                        <div class="course-meta">
-                           <span
-                              ><i class="fas fa-user-graduate"></i> 28
-                              Students</span
-                           >
-                           <span
-                              ><i class="fas fa-clock"></i> Mon, Wed
-                              2:00-3:30</span
-                           >
-                           <span
-                              ><i class="fas fa-tasks"></i> 12 Assignments</span
-                           >
-                        </div>
-                     </div>
-                  </div>
+                  </c:forEach>
                </div>
             </div>
          </div>
@@ -1014,34 +987,49 @@ uri="http://java.sun.com/jsp/jstl/core" %>
             <h2 class="page-title">Assignments</h2>
             <div class="card">
                <div class="card-header">
-                  <h3 class="card-title">Upcoming Assignments</h3>
+                  <h3 class="card-title">My Assignments</h3>
                </div>
-               <div class="assignment-list">
-                  <div class="assignment-card">
-                     <div class="assignment-header">
-                        <span class="assignment-title">Physics Lab Report</span>
-                        <span class="assignment-due">Due: April 25, 2025</span>
-                     </div>
-                     <div class="assignment-body">
-                        <p>
-                           Complete the lab report for the recent physics
-                           experiment.
-                        </p>
-                     </div>
-                  </div>
-                  <div class="assignment-card">
-                     <div class="assignment-header">
-                        <span class="assignment-title">Chemistry Quiz</span>
-                        <span class="assignment-due">Due: April 28, 2025</span>
-                     </div>
-                     <div class="assignment-body">
-                        <p>
-                           Prepare for the upcoming chemistry quiz covering
-                           chapters 1-3.
-                        </p>
-                     </div>
-                  </div>
-               </div>
+               <table class="styled-table">
+                  <thead>
+                     <tr>
+                        <th>Title</th>
+                        <th>Course</th>
+                        <th>Description</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                     </tr>
+                  </thead>
+                  <tbody>
+                     <c:forEach items="${assignments}" var="assignment">
+                        <tr>
+                           <td>${assignment.title}</td>
+                           <td>${assignment.courseTitle}</td>
+                           <td>${assignment.description}</td>
+                           <td>${assignment.dueDate}</td>
+                           <td>
+                              <c:choose>
+                                 <c:when test="${assignment.isSubmitted}">
+                                    <span class="status active">Submitted</span>
+                                 </c:when>
+                                 <c:otherwise>
+                                    <span class="status pending">Pending</span>
+                                 </c:otherwise>
+                              </c:choose>
+                           </td>
+                           <td>
+                              <c:if test="${!assignment.isSubmitted}">
+                                 <form action="${pageContext.request.contextPath}/student/dashboard" method="post" style="display: inline;">
+                                    <input type="hidden" name="action" value="submitAssignment">
+                                    <input type="hidden" name="assignmentId" value="${assignment.id}">
+                                    <button type="submit" class="btn btn-primary">Submit</button>
+                                 </form>
+                              </c:if>
+                           </td>
+                        </tr>
+                     </c:forEach>
+                  </tbody>
+               </table>
             </div>
          </div>
 

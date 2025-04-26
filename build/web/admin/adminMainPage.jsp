@@ -2,6 +2,10 @@
 uri="http://java.sun.com/jsp/jstl/core" %> <% if
 (request.getAttribute("teachers") == null) {
 response.sendRedirect(request.getContextPath() + "/admin/dashboard"); return; }
+if (request.getAttribute("students") == null) {
+response.sendRedirect(request.getContextPath() + "/admin/dashboard"); return; }
+if (request.getAttribute("courses") == null) {
+response.sendRedirect(request.getContextPath() + "/admin/dashboard"); return; }
 %>
 <!DOCTYPE html>
 <html lang="en">
@@ -690,6 +694,152 @@ response.sendRedirect(request.getContextPath() + "/admin/dashboard"); return; }
             color: #10b981;
             font-weight: bold;
          }
+
+         /* Enhanced Course Grid Layout */
+         .course-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
+            padding: 20px;
+         }
+
+         .course-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            overflow: hidden;
+         }
+
+         .course-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(67, 97, 238, 0.2);
+         }
+
+         .course-header {
+            padding: 20px;
+            background: linear-gradient(
+               135deg,
+               var(--primary-color),
+               var(--secondary-color)
+            );
+            color: white;
+            position: relative;
+            overflow: hidden;
+         }
+
+         .course-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: skewX(-25deg);
+         }
+
+         .course-icon {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 24px;
+            color: rgba(255, 255, 255, 0.9);
+         }
+
+         .course-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+         }
+
+         .course-department {
+            font-size: 0.9rem;
+            opacity: 0.9;
+         }
+
+         .course-body {
+            padding: 20px;
+         }
+
+         .course-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+         }
+
+         .stat {
+            text-align: center;
+            padding: 10px;
+            background: rgba(67, 97, 238, 0.05);
+            border-radius: 10px;
+         }
+
+         .stat-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary-color);
+         }
+
+         .stat-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 5px;
+         }
+
+         .course-footer {
+            padding: 15px 20px;
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+         }
+
+         .course-status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+         }
+
+         .status-active {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+         }
+
+         .course-actions {
+            display: flex;
+            gap: 10px;
+         }
+
+         .action-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+         }
+
+         .btn-edit {
+            background: var(--primary-color);
+            color: white;
+         }
+
+         .btn-edit:hover {
+            background: var(--secondary-color);
+         }
+
+         .btn-delete {
+            background: rgba(247, 37, 133, 0.1);
+            color: var(--danger-color);
+         }
+
+         .btn-delete:hover {
+            background: var(--danger-color);
+            color: white;
+         }
       </style>
    </head>
    <body>
@@ -885,20 +1035,32 @@ response.sendRedirect(request.getContextPath() + "/admin/dashboard"); return; }
                      </tr>
                   </thead>
                   <tbody>
-                     <tr>
-                        <td>S001</td>
-                        <td>John Doe</td>
-                        <td>Level 3</td>
-                        <td>john.d@eduteach.com</td>
-                        <td>987-654-3210</td>
-                        <td>Male</td>
-                        <td><span class="status active">Active</span></td>
-                        <td>
-                           <button class="btn-edit">Edit</button>
-                           <button class="btn-delete">Delete</button>
-                        </td>
-                     </tr>
-                     <!-- Add more student rows -->
+                     <c:forEach items="${students}" var="student">
+                        <tr>
+                           <td>${student.id}</td>
+                           <td>${student.name}</td>
+                           <td>${student.level}</td>
+                           <td>${student.email}</td>
+                           <td>${student.contact}</td>
+                           <td>${student.gender}</td>
+                           <td>
+                              <span class="status ${student.status}"
+                                 >${student.status}</span
+                              >
+                           </td>
+                           <td>
+                              <button class="btn-edit" data-id="${student.id}">
+                                 Edit
+                              </button>
+                              <button
+                                 class="btn-delete"
+                                 data-id="${student.id}"
+                              >
+                                 Delete
+                              </button>
+                           </td>
+                        </tr>
+                     </c:forEach>
                   </tbody>
                </table>
             </div>
@@ -906,50 +1068,105 @@ response.sendRedirect(request.getContextPath() + "/admin/dashboard"); return; }
 
          <!-- Courses Page -->
          <div class="page-container" id="courses">
-            <h2 class="page-title">Course Management</h2>
+            <h2 class="page-title">Courses Management</h2>
             <div class="card">
                <div class="card-header">
-                  <h3 class="card-title">Active Courses</h3>
+                  <h3 class="card-title">All Courses</h3>
                   <div class="card-actions">
-                     <button class="btn btn-primary">Add Course</button>
+                     <button class="btn btn-primary">Add New Course</button>
                   </div>
                </div>
-               <div class="course-list">
-                  <div class="course-item">
-                     <div class="course-thumbnail">
-                        <i class="fas fa-atom"></i>
-                     </div>
-                     <div class="course-info">
-                        <h4>Advanced Physics</h4>
-                        <p>Science Department</p>
-                        <div class="course-meta">
+
+               <!-- Filters Section -->
+               <div class="filters">
+                  <select id="filterDepartment" class="filter-dropdown">
+                     <option value="">All Departments</option>
+                     <c:forEach items="${departments}" var="department">
+                        <option value="${department.name}">
+                           ${department.name}
+                        </option>
+                     </c:forEach>
+                  </select>
+                  <select id="filterTeacher" class="filter-dropdown">
+                     <option value="">All Teachers</option>
+                     <c:forEach items="${teachers}" var="teacher">
+                        <option value="${teacher.name}">${teacher.name}</option>
+                     </c:forEach>
+                  </select>
+                  <select id="filterStatus" class="filter-dropdown">
+                     <option value="">All Status</option>
+                     <option value="active">Active</option>
+                     <option value="inactive">Inactive</option>
+                  </select>
+               </div>
+
+               <div class="course-grid" id="courseGrid">
+                  <c:forEach items="${courses}" var="course">
+                     <div
+                        class="course-card"
+                        data-department="${course.department}"
+                        data-teacher="${course.teacher}"
+                        data-status="${course.status}"
+                     >
+                        <div class="course-header">
+                           <i class="fas fa-book course-icon"></i>
+                           <h3 class="course-title">${course.title}</h3>
+                           <div class="course-department">
+                              ${course.department}
+                           </div>
+                        </div>
+                        <div class="course-body">
+                           <div class="course-stats">
+                              <div class="stat">
+                                 <div class="stat-value">
+                                    <i class="fas fa-users"></i>
+                                    ${course.studentCount}
+                                 </div>
+                                 <div class="stat-label">Students</div>
+                              </div>
+                              <div class="stat">
+                                 <div class="stat-value">
+                                    <i class="fas fa-user-tie"></i>
+                                    ${course.teacher}
+                                 </div>
+                                 <div class="stat-label">Teacher</div>
+                              </div>
+                           </div>
+                        </div>
+                        <div class="course-footer">
                            <span
-                              ><i class="fas fa-user-graduate"></i> 32
-                              Students</span
+                              class="course-status status-${course.status.toLowerCase()}"
+                              >${course.status}</span
                            >
-                           <span
-                              ><i class="fas fa-user-tie"></i> Dr. Sarah
-                              Johnson</span
-                           >
+                           <div class="course-actions">
+                              <button
+                                 class="action-btn btn-edit"
+                                 data-id="${course.id}"
+                              >
+                                 <i class="fas fa-edit"></i> Edit
+                              </button>
+                              <button
+                                 class="action-btn btn-delete"
+                                 data-id="${course.id}"
+                              >
+                                 <i class="fas fa-trash"></i> Delete
+                              </button>
+                           </div>
                         </div>
                      </div>
-                     <div class="course-actions">
-                        <button class="btn-edit">Edit</button>
-                        <button class="btn-delete">Delete</button>
-                     </div>
-                  </div>
+                  </c:forEach>
                </div>
             </div>
          </div>
 
          <!-- Departments Page -->
          <div class="page-container" id="departments">
-            <h2 class="page-title">Department Management</h2>
+            <h2 class="page-title">Departments Management</h2>
             <div class="card">
                <div class="card-header">
                   <h3 class="card-title">All Departments</h3>
                   <div class="card-actions">
-                     <button class="btn btn-primary">Add Department</button>
+                     <button class="btn btn-primary">Add New Department</button>
                   </div>
                </div>
                <table class="styled-table">
@@ -957,25 +1174,37 @@ response.sendRedirect(request.getContextPath() + "/admin/dashboard"); return; }
                      <tr>
                         <th>ID</th>
                         <th>Department Name</th>
-                        <th>Head of Department</th>
-                        <th>Total Staff</th>
-                        <th>Total Students</th>
+                        <th>Status</th>
                         <th>Actions</th>
                      </tr>
                   </thead>
                   <tbody>
-                     <tr>
-                        <td>D001</td>
-                        <td>Science</td>
-                        <td>Dr. Sarah Johnson</td>
-                        <td>15</td>
-                        <td>450</td>
-                        <td>
-                           <button class="btn-edit">Edit</button>
-                           <button class="btn-delete">Delete</button>
-                        </td>
-                     </tr>
-                     <!-- Add more department rows -->
+                     <c:forEach items="${departments}" var="department">
+                        <tr>
+                           <td>${department.id}</td>
+                           <td>${department.name}</td>
+                           <td>
+                              <span
+                                 class="status ${department.status.toLowerCase()}"
+                                 >${department.status}</span
+                              >
+                           </td>
+                           <td>
+                              <button
+                                 class="btn-edit"
+                                 data-id="${department.id}"
+                              >
+                                 Edit
+                              </button>
+                              <button
+                                 class="btn-delete"
+                                 data-id="${department.id}"
+                              >
+                                 Delete
+                              </button>
+                           </td>
+                        </tr>
+                     </c:forEach>
                   </tbody>
                </table>
             </div>
@@ -1065,6 +1294,46 @@ response.sendRedirect(request.getContextPath() + "/admin/dashboard"); return; }
          document
             .querySelector('.action-icon:last-child')
             .addEventListener('click', logout);
+
+         // Filter functionality
+         const filterDepartment = document.getElementById('filterDepartment');
+         const filterTeacher = document.getElementById('filterTeacher');
+         const filterStatus = document.getElementById('filterStatus');
+         const courseGrid = document.getElementById('courseGrid');
+
+         function filterCourses() {
+            const department = filterDepartment.value.toLowerCase();
+            const teacher = filterTeacher.value.toLowerCase();
+            const status = filterStatus.value.toLowerCase();
+
+            const courses = courseGrid.querySelectorAll('.course-card');
+            courses.forEach((course) => {
+               const courseDepartment = course
+                  .getAttribute('data-department')
+                  .toLowerCase();
+               const courseTeacher = course
+                  .getAttribute('data-teacher')
+                  .toLowerCase();
+               const courseStatus = course
+                  .getAttribute('data-status')
+                  .toLowerCase();
+
+               const matchesDepartment =
+                  !department || courseDepartment === department;
+               const matchesTeacher = !teacher || courseTeacher === teacher;
+               const matchesStatus = !status || courseStatus === status;
+
+               if (matchesDepartment && matchesTeacher && matchesStatus) {
+                  course.style.display = 'block';
+               } else {
+                  course.style.display = 'none';
+               }
+            });
+         }
+
+         filterDepartment.addEventListener('change', filterCourses);
+         filterTeacher.addEventListener('change', filterCourses);
+         filterStatus.addEventListener('change', filterCourses);
       </script>
    </body>
 </html>

@@ -331,9 +331,9 @@ CREATE INDEX idx_calendar_events ON calendar_events(teacher_id, event_date);
 
 INSERT INTO teachers (name, email, contact, department_id, password_hash, password_salt, status, profile_image)
 VALUES 
-('Mr. David Smith', 'david.smith@eduteach.com', '237 677 018 362', 2, SHA2('teachpasssalt2', 256), 'salt2', 'active', '/assets/images/david-smith.jpg'),
-('Ms. Linda Okoro', 'linda.okoro@eduteach.com', '237 677 018 363', 3, SHA2('abc123salt3', 256), 'salt3', 'active', '/assets/images/linda-okoro.jpg'),
-('Prof. James Kim', 'james.kim@eduteach.com', '237 677 018 364', 4, SHA2('securepasssalt4', 256), 'salt4', 'active', '/assets/images/james-kim.jpg'),
+('Mr. David Smith', 'david.smith@eduteach.com', '237 677 018 362', 2, SHA2('teachpasssalt', 256), 'salt', 'active', '/assets/images/david-smith.jpg'),
+('Ms. Linda Okoro', 'linda.okoro@eduteach.com', '237 677 018 363', 3, SHA2('abc123salt', 256), 'salt', 'active', '/assets/images/linda-okoro.jpg'),
+('Prof. James Kim', 'james.kim@eduteach.com', '237 677 018 364', 4, SHA2('securepasssalt', 256), 'salt', 'active', '/assets/images/james-kim.jpg'),
 ('Mrs. Fatima Bello', 'fatima.bello@eduteach.com', '237 677 018 365', 1, SHA2('mypasswordsalt5', 256), 'salt5', 'active', '/assets/images/fatima-bello.jpg'),
 ('Mr. Michael Chen', 'michael.chen@eduteach.com', '237 677 018 366', 2, SHA2('letmeinSalt6', 256), 'salt6', 'active', '/assets/images/michael-chen.jpg'),
 ('Dr. Anita Rao', 'anita.rao@eduteach.com', '237 677 018 367', 3, SHA2('pass123salt7', 256), 'salt7', 'active', '/assets/images/anita-rao.jpg'),

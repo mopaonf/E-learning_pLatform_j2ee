@@ -1,6 +1,10 @@
-<%-- Document : teacherMainPage Created on : Apr 22, 2025, 8:38:19 p.m. Author :
-ASPIRE I7 --%> <%@ page contentType="text/html" pageEncoding="UTF-8"%> <%@
-taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@page contentType="text/html" pageEncoding="UTF-8"%> <%@ taglib prefix="c"
+uri="http://java.sun.com/jsp/jstl/core" %> <% if
+(request.getAttribute("courses") == null) {
+response.sendRedirect(request.getContextPath() + "/teacher/dashboard"); return;
+} if (request.getAttribute("courses") == null) {
+response.sendRedirect(request.getContextPath() + "/teacher/dashboard"); return;
+} %>
 <!DOCTYPE html>
 <html lang="en">
    <head>
@@ -630,6 +634,113 @@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
          ::-webkit-scrollbar-thumb:hover {
             background: #a8a8a8;
          }
+
+         /* Form Styling */
+         .form-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+         }
+
+         .form-group {
+            margin-bottom: 20px;
+         }
+
+         .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--dark-color);
+         }
+
+         .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background-color: #fff;
+         }
+
+         .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+            outline: none;
+         }
+
+         textarea.form-control {
+            min-height: 120px;
+            resize: vertical;
+         }
+
+         select.form-control {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236B7280' viewBox='0 0 16 16'%3E%3Cpath d='M8 10.5l-4-4h8l-4 4z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 40px;
+         }
+
+         .form-submit {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+         }
+
+         .form-submit:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-1px);
+         }
+
+         .form-submit:active {
+            transform: translateY(0);
+         }
+
+         .form-submit i {
+            font-size: 18px;
+         }
+
+         /* Two-column form layout */
+         .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+         }
+
+         @media (max-width: 768px) {
+            .form-grid {
+               grid-template-columns: 1fr;
+            }
+         }
+
+         /* Form header styling */
+         .form-header {
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e2e8f0;
+         }
+
+         .form-header h3 {
+            font-size: 20px;
+            color: var(--dark-color);
+            margin-bottom: 8px;
+         }
+
+         .form-header p {
+            color: #6b7280;
+            font-size: 14px;
+         }
       </style>
       <link
          rel="stylesheet"
@@ -741,7 +852,7 @@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
             <div class="dashboard">
                <div class="stat-card">
                   <div class="stat-info">
-                     <h3>145</h3>
+                     <h3>${totalStudents}</h3>
                      <p>Total Students</p>
                   </div>
                   <div class="stat-icon blue">
@@ -751,7 +862,7 @@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 
                <div class="stat-card">
                   <div class="stat-info">
-                     <h3>8</h3>
+                     <h3>${activeCourses}</h3>
                      <p>Active Courses</p>
                   </div>
                   <div class="stat-icon purple">
@@ -966,95 +1077,65 @@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
                      <button class="btn btn-primary">Add New Course</button>
                   </div>
                </div>
-
                <div class="course-list">
-                  <div class="course-item">
-                     <div class="course-thumbnail">
-                        <i class="fas fa-atom"></i>
-                     </div>
-                     <div class="course-info">
-                        <h4 class="course-title">Advanced Physics</h4>
-                        <div class="course-meta">
-                           <span
-                              ><i class="fas fa-user-graduate"></i> 32
-                              Students</span
-                           >
-                           <span
-                              ><i class="fas fa-clock"></i> Tue, Thu
-                              10:00-11:30</span
-                           >
-                           <span
-                              ><i class="fas fa-tasks"></i> 8 Assignments</span
-                           >
+                  <c:forEach items="${courses}" var="course">
+                     <div class="course-item">
+                        <div class="course-thumbnail">
+                           <i class="fas fa-book"></i>
                         </div>
-                     </div>
-                     <button class="btn btn-primary">Manage</button>
-                  </div>
-
-                  <div class="course-item">
-                     <div class="course-thumbnail">
-                        <i class="fas fa-flask"></i>
-                     </div>
-                     <div class="course-info">
-                        <h4 class="course-title">Chemistry Lab</h4>
-                        <div class="course-meta">
-                           <span
-                              ><i class="fas fa-user-graduate"></i> 28
-                              Students</span
-                           >
-                           <span
-                              ><i class="fas fa-clock"></i> Mon, Wed
-                              2:00-3:30</span
-                           >
-                           <span
-                              ><i class="fas fa-tasks"></i> 12 Assignments</span
-                           >
+                        <div class="course-info">
+                           <h4 class="course-title">${course.title}</h4>
+                           <div class="course-meta">
+                              <span
+                                 ><i class="fas fa-user-graduate"></i>
+                                 ${course.studentCount} Students</span
+                              >
+                              <span
+                                 ><i class="fas fa-building"></i>
+                                 ${course.department}</span
+                              >
+                              <span
+                                 ><i class="fas fa-clock"></i>
+                                 ${course.schedule}</span
+                              >
+                           </div>
                         </div>
+                        <button class="btn btn-primary">Manage</button>
                      </div>
-                     <button class="btn btn-primary">Manage</button>
-                  </div>
+                  </c:forEach>
                </div>
             </div>
          </div>
 
          <!-- Students Page -->
          <div class="page-container" id="students">
-            <h2 class="page-title">Students</h2>
+            <h2 class="page-title">My Students</h2>
             <div class="card">
                <div class="card-header">
                   <h3 class="card-title">Student List</h3>
-                  <div class="card-actions">
-                     <button class="btn btn-primary">Add Student</button>
-                  </div>
                </div>
-               <table>
+               <table class="styled-table">
                   <thead>
                      <tr>
                         <th>ID</th>
-                        <th>Name</th>
-                        <th>Level</th>
+                        <th>Full Name</th>
                         <th>Email</th>
                         <th>Tel</th>
                         <th>Gender</th>
+                        <th>Level</th>
                      </tr>
                   </thead>
                   <tbody>
-                     <tr>
-                        <td>1</td>
-                        <td>John Doe</td>
-                        <td>2</td>
-                        <td>john.doe@example.com</td>
-                        <td>123-456-7890</td>
-                        <td>Male</td>
-                     </tr>
-                     <tr>
-                        <td>2</td>
-                        <td>Jane Smith</td>
-                        <td>3</td>
-                        <td>jane.smith@example.com</td>
-                        <td>987-654-3210</td>
-                        <td>Female</td>
-                     </tr>
+                     <c:forEach items="${students}" var="student">
+                        <tr>
+                           <td>${student.id}</td>
+                           <td>${student.fullName}</td>
+                           <td>${student.email}</td>
+                           <td>${student.tel}</td>
+                           <td>${student.gender}</td>
+                           <td>${student.level}</td>
+                        </tr>
+                     </c:forEach>
                   </tbody>
                </table>
             </div>
@@ -1064,34 +1145,106 @@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
          <div class="page-container" id="assignments">
             <h2 class="page-title">Assignments</h2>
             <div class="card">
-               <div class="card-header">
-                  <h3 class="card-title">Upcoming Assignments</h3>
-                  <div class="card-actions">
-                     <button class="btn btn-primary">Add Assignment</button>
+               <div class="form-container">
+                  <div class="form-header">
+                     <h3>Create New Assignment</h3>
+                     <p>
+                        Fill in the details below to create a new assignment for
+                        your students.
+                     </p>
                   </div>
+                  <form
+                     action="${pageContext.request.contextPath}/teacher/dashboard"
+                     method="post"
+                  >
+                     <input type="hidden" name="action" value="addAssignment" />
+                     <div class="form-grid">
+                        <div class="form-group">
+                           <label for="title">Assignment Title</label>
+                           <input
+                              type="text"
+                              id="title"
+                              name="title"
+                              class="form-control"
+                              placeholder="Enter assignment title"
+                              required
+                           />
+                        </div>
+                        <div class="form-group">
+                           <label for="courseId">Select Course</label>
+                           <select
+                              id="courseId"
+                              name="courseId"
+                              class="form-control"
+                              required
+                           >
+                              <option value="">Choose a course</option>
+                              <c:forEach items="${courses}" var="course">
+                                 <option value="${course.id}">
+                                    ${course.title}
+                                 </option>
+                              </c:forEach>
+                           </select>
+                        </div>
+                     </div>
+                     <div class="form-group">
+                        <label for="description">Assignment Description</label>
+                        <textarea
+                           id="description"
+                           name="description"
+                           class="form-control"
+                           placeholder="Enter detailed assignment description"
+                        ></textarea>
+                     </div>
+                     <div class="form-grid">
+                        <div class="form-group">
+                           <label for="dueDate">Due Date</label>
+                           <input
+                              type="datetime-local"
+                              id="dueDate"
+                              name="dueDate"
+                              class="form-control"
+                              required
+                           />
+                        </div>
+                        <div
+                           class="form-group"
+                           style="display: flex; align-items: flex-end"
+                        >
+                           <button type="submit" class="form-submit">
+                              <i class="fas fa-plus"></i>
+                              Create Assignment
+                           </button>
+                        </div>
+                     </div>
+                  </form>
                </div>
-               <table>
+            </div>
+
+            <div class="card">
+               <div class="card-header">
+                  <h3 class="card-title">Assignments</h3>
+               </div>
+               <table class="styled-table">
                   <thead>
                      <tr>
                         <th>Title</th>
+                        <th>Description</th>
                         <th>Course</th>
                         <th>Due Date</th>
-                        <th>Status</th>
+                        <th>Created At</th>
                      </tr>
                   </thead>
                   <tbody>
-                     <tr>
-                        <td>Physics Lab Report</td>
-                        <td>Physics 101</td>
-                        <td>April 25, 2025</td>
-                        <td>Pending</td>
-                     </tr>
-                     <tr>
-                        <td>Chemistry Quiz</td>
-                        <td>Chemistry 201</td>
-                        <td>April 28, 2025</td>
-                        <td>Pending</td>
-                     </tr>
+                     <c:forEach items="${assignments}" var="assignment">
+                        <tr>
+                           <td>${assignment.title}</td>
+                           <td>${assignment.description}</td>
+                           <td>${assignment.courseTitle}</td>
+                           <td>${assignment.dueDate}</td>
+                           <td>${assignment.createdAt}</td>
+                        </tr>
+                     </c:forEach>
                   </tbody>
                </table>
             </div>
