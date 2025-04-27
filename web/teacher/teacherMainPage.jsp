@@ -1073,9 +1073,7 @@ response.sendRedirect(request.getContextPath() + "/teacher/dashboard"); return;
             <div class="card">
                <div class="card-header">
                   <h3 class="card-title">Active Courses</h3>
-                  <div class="card-actions">
-                     <button class="btn btn-primary">Add New Course</button>
-                  </div>
+                  <!-- Removed the "Add New Course" button -->
                </div>
                <div class="course-list">
                   <c:forEach items="${courses}" var="course">
@@ -1100,12 +1098,75 @@ response.sendRedirect(request.getContextPath() + "/teacher/dashboard"); return;
                               >
                            </div>
                         </div>
-                        <button class="btn btn-primary">Manage</button>
+                        <!-- Updated the "Manage" button -->
+                        <button
+                           class="btn btn-primary"
+                           onclick="showCourseStudents('${course.id}', '${course.title}')"
+                        >
+                           Manage
+                        </button>
                      </div>
                   </c:forEach>
                </div>
             </div>
          </div>
+
+         <!-- Modal to display students in the selected course -->
+         <div id="courseStudentsModal" class="modal" style="display: none;">
+            <div class="modal-content">
+               <span class="close" onclick="closeCourseStudentsModal()">&times;</span>
+               <h3 id="courseTitle">Course Students</h3>
+               <table class="styled-table">
+                  <thead>
+                     <tr>
+                        <th>ID</th>
+                        <th>Full Name</th>
+                        <th>Email</th>
+                        <th>Tel</th>
+                        <th>Gender</th>
+                        <th>Level</th>
+                     </tr>
+                  </thead>
+                  <tbody id="courseStudentsTableBody">
+                     <!-- Students will be dynamically loaded here -->
+                  </tbody>
+               </table>
+            </div>
+         </div>
+
+         <!-- Add JavaScript for managing course students -->
+         <script>
+            function showCourseStudents(courseId, courseTitle) {
+               document.getElementById("courseTitle").textContent = `Students in ${courseTitle}`;
+               const tableBody = document.getElementById("courseStudentsTableBody");
+               tableBody.innerHTML = ""; // Clear previous data
+
+               fetch(
+                  `${window.location.origin}${window.location.pathname}?action=loadCourseStudents&courseId=${courseId}&format=json`
+               )
+                  .then((response) => response.json())
+                  .then((students) => {
+                     students.forEach((student) => {
+                        const row = document.createElement("tr");
+                        row.innerHTML = `
+                           <td>${student.id}</td>
+                           <td>${student.fullName}</td>
+                           <td>${student.email}</td>
+                           <td>${student.tel}</td>
+                           <td>${student.gender}</td>
+                           <td>${student.level}</td>
+                        `;
+                        tableBody.appendChild(row);
+                     });
+                     document.getElementById("courseStudentsModal").style.display = "flex";
+                  })
+                  .catch((error) => console.error("Error loading students:", error));
+            }
+
+            function closeCourseStudentsModal() {
+               document.getElementById("courseStudentsModal").style.display = "none";
+            }
+         </script>
 
          <!-- Students Page -->
          <div class="page-container" id="students">
@@ -1224,15 +1285,36 @@ response.sendRedirect(request.getContextPath() + "/teacher/dashboard"); return;
             <div class="card">
                <div class="card-header">
                   <h3 class="card-title">Assignments</h3>
+                  <!-- Add range filter inputs -->
+                  <div class="form-grid">
+                     <div class="form-group">
+                        <label for="filterFromDate">From Date</label>
+                        <input
+                           type="date"
+                           id="filterFromDate"
+                           class="form-control"
+                           onchange="filterAssignments()"
+                        />
+                     </div>
+                     <div class="form-group">
+                        <label for="filterToDate">To Date</label>
+                        <input
+                           type="date"
+                           id="filterToDate"
+                           class="form-control"
+                           onchange="filterAssignments()"
+                        />
+                     </div>
+                  </div>
                </div>
-               <table class="styled-table">
+               <table class="styled-table" id="assignmentsTable">
                   <thead>
                      <tr>
                         <th>Title</th>
                         <th>Description</th>
                         <th>Course</th>
                         <th>Due Date</th>
-                        <th>Created At</th>
+                        <th>Actions</th>
                      </tr>
                   </thead>
                   <tbody>
@@ -1242,13 +1324,98 @@ response.sendRedirect(request.getContextPath() + "/teacher/dashboard"); return;
                            <td>${assignment.description}</td>
                            <td>${assignment.courseTitle}</td>
                            <td>${assignment.dueDate}</td>
-                           <td>${assignment.createdAt}</td>
+                           <td>
+                              <!-- Edit Button -->
+                              <button
+                                 class="btn btn-edit"
+                                 onclick="showEditAssignmentModal('${assignment.id}', '${assignment.title}', '${assignment.description}', '${assignment.dueDate}')"
+                              >
+                                 Edit
+                              </button>
+                              <!-- Delete Button -->
+                              <form
+                                 action="${pageContext.request.contextPath}/teacher/dashboard"
+                                 method="post"
+                                 style="display: inline;"
+                              >
+                                 <input type="hidden" name="action" value="deleteAssignment" />
+                                 <input type="hidden" name="id" value="${assignment.id}" />
+                                 <button type="submit" class="btn btn-danger">
+                                    Delete
+                                 </button>
+                              </form>
+                           </td>
                         </tr>
                      </c:forEach>
                   </tbody>
                </table>
             </div>
          </div>
+
+         <!-- Add the modal structure for editing assignments -->
+         <div id="editAssignmentModal" class="modal" style="display: none;">
+            <div class="modal-content">
+               <span class="close" onclick="closeEditAssignmentModal()">&times;</span>
+               <h3>Edit Assignment</h3>
+               <form id="editAssignmentForm" action="${pageContext.request.contextPath}/teacher/dashboard" method="post">
+                  <input type="hidden" name="action" value="editAssignment" />
+                  <input type="hidden" id="editAssignmentId" name="id" />
+                  <div class="form-group">
+                     <label for="editAssignmentTitle">Title</label>
+                     <input type="text" id="editAssignmentTitle" name="title" class="form-control" required />
+                  </div>
+                  <div class="form-group">
+                     <label for="editAssignmentDescription">Description</label>
+                     <textarea id="editAssignmentDescription" name="description" class="form-control"></textarea>
+                  </div>
+                  <div class="form-group">
+                     <label for="editAssignmentDueDate">Due Date</label>
+                     <input type="datetime-local" id="editAssignmentDueDate" name="dueDate" class="form-control" required />
+                  </div>
+                  <button type="submit" class="form-submit">Save Changes</button>
+               </form>
+            </div>
+         </div>
+
+         <!-- Add JavaScript for modal and filtering functionality -->
+         <script>
+            function showEditAssignmentModal(id, title, description, dueDate) {
+               document.getElementById("editAssignmentId").value = id;
+               document.getElementById("editAssignmentTitle").value = title;
+               document.getElementById("editAssignmentDescription").value = description;
+               document.getElementById("editAssignmentDueDate").value = dueDate;
+               document.getElementById("editAssignmentModal").style.display = "flex";
+            }
+
+            function closeEditAssignmentModal() {
+               document.getElementById("editAssignmentModal").style.display = "none";
+            }
+
+            function filterAssignments() {
+               const fromDate = document.getElementById("filterFromDate").value;
+               const toDate = document.getElementById("filterToDate").value;
+               const table = document.getElementById("assignmentsTable");
+               const rows = table.getElementsByTagName("tr");
+
+               for (let i = 1; i < rows.length; i++) {
+                  const dueDateCell = rows[i].getElementsByTagName("td")[3];
+                  const dueDateText = dueDateCell.textContent.trim();
+                  const dueDate = new Date(dueDateText);
+
+                  const fromDateObj = fromDate ? new Date(fromDate) : null;
+                  const toDateObj = toDate ? new Date(toDate) : null;
+
+                  if (
+                     (!fromDateObj || dueDate >= fromDateObj) &&
+                     (!toDateObj || dueDate <= toDateObj)
+                  ) {
+                     rows[i].style.display = "";
+                  } else {
+                     rows[i].style.display = "none";
+                  }
+               }
+            }
+         </script>
 
          <!-- Grades Page -->
          <div class="page-container" id="grades">
@@ -1316,8 +1483,31 @@ response.sendRedirect(request.getContextPath() + "/teacher/dashboard"); return;
             <div class="card">
                <div class="card-header">
                   <h3 class="card-title">Grades List</h3>
+                  <!-- Add filter inputs -->
+                  <div class="form-grid">
+                     <div class="form-group">
+                        <label for="filterCourse">Filter by Course Title</label>
+                        <input
+                           type="text"
+                           id="filterCourse"
+                           class="form-control"
+                           placeholder="Enter course title"
+                           onkeyup="filterGrades()"
+                        />
+                     </div>
+                     <div class="form-group">
+                        <label for="filterGrade">Filter by Grade</label>
+                        <input
+                           type="text"
+                           id="filterGrade"
+                           class="form-control"
+                           placeholder="Enter grade (e.g., A, B+)"
+                           onkeyup="filterGrades()"
+                        />
+                     </div>
+                  </div>
                </div>
-               <table class="styled-table">
+               <table class="styled-table" id="gradesTable">
                   <thead>
                      <tr>
                         <th>Student Name</th>
@@ -1340,7 +1530,7 @@ response.sendRedirect(request.getContextPath() + "/teacher/dashboard"); return;
                            <!-- Matches 'dateRecorded' key in loadGrades -->
                            <td>
                               <!-- Edit Button -->
-                              <button class="btn btn-edit" onclick="showEditGradeModal('${grade.Id}', '${grade.gradeValue}')">Edit</button>
+                              <button class="btn btn-edit" onclick="showEditGradeModal('${grade.id}', '${grade.gradeValue}')">Edit</button>
                               <!-- Delete Button -->
                               <form action="${pageContext.request.contextPath}/teacher/dashboard" method="post" style="display:inline;">
                                  <input type="hidden" name="action" value="deleteGrade">
@@ -1462,6 +1652,96 @@ response.sendRedirect(request.getContextPath() + "/teacher/dashboard"); return;
             </div>
          </div>
       </div>
+
+      <!-- Add the modal structure for editing grades -->
+      <div id="editGradeModal" class="modal" style="display: none;">
+         <div class="modal-content">
+            <span class="close" onclick="closeEditGradeModal()">&times;</span>
+            <h3>Edit Grade</h3>
+            <form id="editGradeForm" action="${pageContext.request.contextPath}/teacher/dashboard" method="post">
+               <input type="hidden" name="action" value="editGrade" />
+               <input type="hidden" id="editGradeId" name="id" />
+               <div class="form-group">
+                  <label for="editGradeValue">Grade</label>
+                  <input type="text" id="editGradeValue" name="gradeValue" class="form-control" required />
+               </div>
+               <button type="submit" class="form-submit">Save Changes</button>
+            </form>
+         </div>
+      </div>
+
+      <!-- Add styles for the modal -->
+      <style>
+         .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+         }
+         .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+         }
+         .close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 20px;
+            cursor: pointer;
+         }
+      </style>
+
+      <!-- Add JavaScript for modal functionality -->
+      <script>
+         function showEditGradeModal(gradeId, gradeValue) {
+            document.getElementById('editGradeId').value = gradeId;
+            document.getElementById('editGradeValue').value = gradeValue;
+            document.getElementById('editGradeModal').style.display = 'flex';
+         }
+
+         function closeEditGradeModal() {
+            document.getElementById('editGradeModal').style.display = 'none';
+         }
+      </script>
+
+      <!-- Add JavaScript for filtering grades -->
+      <script>
+         function filterGrades() {
+            const filterCourse = document
+               .getElementById("filterCourse")
+               .value.toLowerCase();
+            const filterGrade = document
+               .getElementById("filterGrade")
+               .value.toLowerCase();
+            const table = document.getElementById("gradesTable");
+            const rows = table.getElementsByTagName("tr");
+
+            for (let i = 1; i < rows.length; i++) {
+               const courseCell = rows[i].getElementsByTagName("td")[1];
+               const gradeCell = rows[i].getElementsByTagName("td")[2];
+               const courseText = courseCell.textContent.toLowerCase();
+               const gradeText = gradeCell.textContent.toLowerCase();
+
+               if (
+                  courseText.includes(filterCourse) &&
+                  gradeText.includes(filterGrade)
+               ) {
+                  rows[i].style.display = "";
+               } else {
+                  rows[i].style.display = "none";
+               }
+            }
+         }
+      </script>
 
       <script>
          // Sidebar toggle functionality

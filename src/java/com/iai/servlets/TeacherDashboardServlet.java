@@ -53,6 +53,38 @@ public class TeacherDashboardServlet extends HttpServlet {
             loadGrades(request, response, teacherId);
             return;
         }
+        if ("loadCourseStudents".equals(action)) {
+            int courseId = Integer.parseInt(request.getParameter("courseId"));
+
+            String sql = "SELECT s.id, s.full_name, s.email, s.tel, s.gender, s.level " +
+                         "FROM students s " +
+                         "JOIN course_enrollments ce ON s.id = ce.student_id " +
+                         "WHERE ce.course_id = ?";
+
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setInt(1, courseId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    List<Map<String, Object>> students = new ArrayList<>();
+                    while (rs.next()) {
+                        Map<String, Object> student = new HashMap<>();
+                        student.put("id", rs.getInt("id"));
+                        student.put("fullName", rs.getString("full_name"));
+                        student.put("email", rs.getString("email"));
+                        student.put("tel", rs.getString("tel"));
+                        student.put("gender", rs.getString("gender"));
+                        student.put("level", rs.getString("level"));
+                        students.add(student);
+                    }
+                    response.setContentType("application/json");
+                    response.getWriter().write(new JSONArray(students).toString());
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error loading course students");
+            }
+            return;
+        }
 
         try (Connection conn = getConnection()) {
             // Fetch total students
@@ -75,11 +107,9 @@ public class TeacherDashboardServlet extends HttpServlet {
             List<Map<String, Object>> assignments = getAssignmentsByTeacher(conn, teacherId);
             request.setAttribute("assignments", assignments);
 
-            //fetch grades
             // Fetch grades
             List<Map<String, Object>> grades = getGradesByTeacher(conn, teacherId);
             request.setAttribute("grades", grades);
-
 
             // Forward to teacher main page
             request.getRequestDispatcher("/teacher/teacherMainPage.jsp").forward(request, response);
@@ -150,6 +180,12 @@ public class TeacherDashboardServlet extends HttpServlet {
                 break;
             case "deleteGrade":
                 deleteGrade(request, response);
+                break;
+            case "editAssignment":
+                editAssignment(request, response);
+                break;
+            case "deleteAssignment":
+                deleteAssignment(request, response);
                 break;
             default:
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid action: " + action);
@@ -1096,6 +1132,52 @@ public class TeacherDashboardServlet extends HttpServlet {
     }
 
     /**
+     * Edits an assignment
+     */
+    private void editAssignment(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        int assignmentId = Integer.parseInt(request.getParameter("id"));
+        String title = request.getParameter("title");
+        String description = request.getParameter("description");
+        String dueDate = request.getParameter("dueDate");
+
+        String sql = "UPDATE assignments SET title = ?, description = ?, due_date = ? WHERE id = ?";
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, title);
+            stmt.setString(2, description);
+            stmt.setString(3, dueDate);
+            stmt.setInt(4, assignmentId);
+            stmt.executeUpdate();
+
+            response.sendRedirect(request.getContextPath() + "/teacher/dashboard?action=loadAssignments");
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.sendRedirect("../error.jsp");
+        }
+    }
+
+    /**
+     * Deletes an assignment
+     */
+    private void deleteAssignment(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        int assignmentId = Integer.parseInt(request.getParameter("id"));
+
+        String sql = "DELETE FROM assignments WHERE id = ?";
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, assignmentId);
+            stmt.executeUpdate();
+
+            response.sendRedirect(request.getContextPath() + "/teacher/dashboard?action=loadAssignments");
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.sendRedirect("../error.jsp");
+        }
+    }
+
+    /**
      * Handles errors by sending an error message to the response
      */
     private void handleError(HttpServletResponse response, String errorMessage) throws IOException {
@@ -1234,5 +1316,37 @@ public class TeacherDashboardServlet extends HttpServlet {
             }
         }
         return 0;
+    }
+
+    private void loadCourseStudents(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        int courseId = Integer.parseInt(request.getParameter("courseId"));
+
+        String sql = "SELECT s.id, s.full_name, s.email, s.tel, s.gender, s.level " +
+                     "FROM students s " +
+                     "JOIN course_enrollments ce ON s.id = ce.student_id " +
+                     "WHERE ce.course_id = ?";
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, courseId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                List<Map<String, Object>> students = new ArrayList<>();
+                while (rs.next()) {
+                    Map<String, Object> student = new HashMap<>();
+                    student.put("id", rs.getInt("id"));
+                    student.put("fullName", rs.getString("full_name"));
+                    student.put("email", rs.getString("email"));
+                    student.put("tel", rs.getString("tel"));
+                    student.put("gender", rs.getString("gender"));
+                    student.put("level", rs.getString("level"));
+                    students.add(student);
+                }
+                response.setContentType("application/json");
+                response.getWriter().write(new JSONArray(students).toString());
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error loading course students");
+        }
     }
 }
