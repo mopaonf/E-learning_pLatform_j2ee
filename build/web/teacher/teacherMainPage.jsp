@@ -592,7 +592,7 @@ response.sendRedirect(request.getContextPath() + "/teacher/dashboard"); return;
             align-items: center;
             justify-content: center;
             font-size: 24px;
-            color: var(--primary-color);
+            color: var (--primary-color);
          }
 
          .course-info {
@@ -1254,34 +1254,107 @@ response.sendRedirect(request.getContextPath() + "/teacher/dashboard"); return;
          <div class="page-container" id="grades">
             <h2 class="page-title">Grades</h2>
             <div class="card">
-               <div class="card-header">
-                  <h3 class="card-title">Recent Grades</h3>
+               <div class="form-container">
+                  <div class="form-header">
+                     <h3>Add Grade</h3>
+                  </div>
+                  <form
+                     action="${pageContext.request.contextPath}/teacher/dashboard"
+                     method="post"
+                  >
+                     <input type="hidden" name="action" value="addGrade" />
+                     <div class="form-grid">
+                        <div class="form-group">
+                           <label for="studentId">Student</label>
+                           <select
+                              id="studentId"
+                              name="studentId"
+                              class="form-control"
+                              required
+                           >
+                              <c:forEach items="${students}" var="student">
+                                 <option value="${student.id}">
+                                    ${student.fullName}
+                                 </option>
+                              </c:forEach>
+                           </select>
+                        </div>
+                        <div class="form-group">
+                           <label for="courseId">Course</label>
+                           <select
+                              id="courseId"
+                              name="courseId"
+                              class="form-control"
+                              required
+                           >
+                              <c:forEach items="${courses}" var="course">
+                                 <option value="${course.id}">
+                                    ${course.title}
+                                 </option>
+                              </c:forEach>
+                           </select>
+                        </div>
+                     </div>
+                     <div class="form-group">
+                        <label for="gradeValue">Grade</label>
+                        <input
+                           type="text"
+                           id="gradeValue"
+                           name="gradeValue"
+                           class="form-control"
+                           placeholder="Enter grade (e.g., A, B+, 85%)"
+                           required
+                        />
+                     </div>
+                     <button type="submit" class="form-submit">
+                        Add Grade
+                     </button>
+                  </form>
                </div>
-               <table>
+            </div>
+
+            <div class="card">
+               <div class="card-header">
+                  <h3 class="card-title">Grades List</h3>
+               </div>
+               <table class="styled-table">
                   <thead>
                      <tr>
-                        <th>Student</th>
-                        <th>Course</th>
+                        <th>Student Name</th>
+                        <th>Course Title</th>
                         <th>Grade</th>
+                        <th>Date Recorded</th>
+                        <th>Actions</th>
                      </tr>
                   </thead>
                   <tbody>
-                     <tr>
-                        <td>John Doe</td>
-                        <td>Physics 101</td>
-                        <td>A</td>
-                     </tr>
-                     <tr>
-                        <td>Jane Smith</td>
-                        <td>Chemistry 201</td>
-                        <td>B+</td>
-                     </tr>
+                     <c:forEach items="${grades}" var="grade">
+                        <tr>
+                           <td>${grade.studentName}</td>
+                           <!-- Matches 'studentName' key in loadGrades -->
+                           <td>${grade.courseTitle}</td>
+                           <!-- Matches 'courseTitle' key in loadGrades -->
+                           <td>${grade.gradeValue}</td>
+                           <!-- Matches 'gradeValue' key in loadGrades -->
+                           <td>${grade.dateRecorded}</td>
+                           <!-- Matches 'dateRecorded' key in loadGrades -->
+                           <td>
+                              <!-- Edit Button -->
+                              <button class="btn btn-edit" onclick="showEditGradeModal('${grade.Id}', '${grade.gradeValue}')">Edit</button>
+                              <!-- Delete Button -->
+                              <form action="${pageContext.request.contextPath}/teacher/dashboard" method="post" style="display:inline;">
+                                 <input type="hidden" name="action" value="deleteGrade">
+                                 <input type="hidden" name="id" value="${grade.id}">
+                                 <button type="submit" class="btn btn-danger">Delete</button>
+                              </form>
+                           </td>
+                        </tr>
+                     </c:forEach>
                   </tbody>
                </table>
             </div>
          </div>
 
-         <!-- Calendar Page -->
          <div class="page-container" id="calendar">
             <h2 class="page-title">Calendar</h2>
             <div class="card">

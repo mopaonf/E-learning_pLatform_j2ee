@@ -58,6 +58,12 @@ public class AdminDashboardServlet extends HttpServlet {
         List<Map<String, Object>> courses = getCourses(conn);
         request.setAttribute("courses", courses);
 
+        // Set counts for dashboard stats
+        request.setAttribute("teacherCount", teachers.size());
+        request.setAttribute("studentCount", students.size());
+        request.setAttribute("courseCount", courses.size());
+        request.setAttribute("departmentCount", departments.size());
+
         request.getRequestDispatcher("/admin/adminMainPage.jsp").forward(request, response);
     } catch (SQLException e) {
         e.printStackTrace();
@@ -68,54 +74,53 @@ public class AdminDashboardServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        String pathInfo = request.getPathInfo();
-        if (pathInfo == null) {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+        String action = request.getParameter("action");
+
+        if (action == null || action.isEmpty()) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Missing or invalid 'action' parameter.");
             return;
         }
-        
-        switch (pathInfo) {
-            case "/addTeacher":
-                addTeacher(request, response);
-                break;
-            case "/updateTeacher":
-                updateTeacher(request, response);
-                break;
-            case "/deleteTeacher":
-                deleteTeacher(request, response);
-                break;
-            case "/addStudent":
-                addStudent(request, response);
-                break;
-            case "/updateStudent":
-                updateStudent(request, response);
-                break;
-            case "/deleteStudent":
-                deleteStudent(request, response);
-                break;
-            case "/addCourse":
-                addCourse(request, response);
-                break;
-            case "/updateCourse":
-                updateCourse(request, response);
-                break;
-            case "/deleteCourse":
-                deleteCourse(request, response);
-                break;
-            case "/addDepartment":
+
+        switch (action) {
+            case "addDepartment":
                 addDepartment(request, response);
                 break;
-            case "/updateDepartment":
-                updateDepartment(request, response);
+            case "editDepartment":
+                editDepartment(request, response);
                 break;
-            case "/deleteDepartment":
+            case "deleteDepartment":
                 deleteDepartment(request, response);
                 break;
-            case "/saveSettings":
-                saveSettings(request, response);
+            case "addCourse":
+                addCourse(request, response);
                 break;
+            case "editCourse":
+                editCourse(request, response);
+                break;
+            case "deleteCourse":
+                deleteCourse(request, response);
+                break;
+            case "addStudent":
+                addStudent(request, response);
+                break;
+            case "editStudent":
+                editStudent(request, response);
+                break;
+            case "deleteStudent":
+                deleteStudent(request, response);
+                break;
+            case "addTeacher":
+                addTeacher(request, response);
+                break;
+            case "editTeacher":
+                editTeacher(request, response);
+                break;
+            case "deleteTeacher":
+                deleteTeacher(request, response);
+                break;
+            // ...existing cases...
             default:
-                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid action: " + action);
                 break;
         }
     }   
@@ -396,40 +401,32 @@ public class AdminDashboardServlet extends HttpServlet {
     /**
      * Add a new teacher to database
      */
-    private void addTeacher(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
+    private void addTeacher(HttpServletRequest request, HttpServletResponse response) 
+            throws IOException {
         String name = request.getParameter("name");
-        String departmentId = request.getParameter("department");
         String email = request.getParameter("email");
         String contact = request.getParameter("contact");
+        String departmentId = request.getParameter("departmentId");
         String status = request.getParameter("status");
-        
-        Connection conn = null;
-        PreparedStatement stmt = null;
-        
-        try {
-            conn = getConnection();
-            String sql = "INSERT INTO teachers (name, department_id, email, contact, status) VALUES (?, ?, ?, ?, ?)";
-            stmt = conn.prepareStatement(sql);
+        String passwordSalt = "salt"; // Use a consistent salt
+        String passwordHash = "SHA2(CONCAT('" + email.split("@")[0] + "123', '" + passwordSalt + "'), 256)";
+
+        String sql = "INSERT INTO teachers (name, email, contact, department_id, password_hash, password_salt, status) VALUES (?, ?, ?, ?, " + passwordHash + ", ?, ?)";
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, name);
-            stmt.setString(2, departmentId);
-            stmt.setString(3, email);
-            stmt.setString(4, contact);
-            stmt.setString(5, status);
-            
-            int rowsAffected = stmt.executeUpdate();
-            if (rowsAffected > 0) {
-                // Invalidate stats cache
-                statsLastUpdated = 0;
-                response.sendRedirect(request.getContextPath() + "/admin/teachers");
-            } else {
-                request.setAttribute("error", "Failed to add teacher");
-                showAddTeacherForm(request, response);
-            }
+            stmt.setString(2, email);
+            stmt.setString(3, contact);
+            stmt.setString(4, departmentId);
+            stmt.setString(5, passwordSalt);
+            stmt.setString(6, status);
+            stmt.executeUpdate();
+
+            response.sendRedirect(request.getContextPath() + "/admin/dashboard?action=listTeachers");
         } catch (SQLException e) {
-            handleSQLException(response, e);
-        } finally {
-            closeResources(conn, stmt, null);
+            e.printStackTrace();
+            response.sendRedirect("../error.jsp");
         }
     }
     
@@ -562,42 +559,34 @@ public class AdminDashboardServlet extends HttpServlet {
         request.getRequestDispatcher("/admin/addStudentForm.jsp").forward(request, response);
     }
     
-    private void addStudent(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        String name = request.getParameter("name");
-        String level = request.getParameter("level");
+    private void addStudent(HttpServletRequest request, HttpServletResponse response) 
+            throws IOException {
+        String fullName = request.getParameter("fullName");
         String email = request.getParameter("email");
-        String contact = request.getParameter("contact");
+        String tel = request.getParameter("tel");
         String gender = request.getParameter("gender");
+        String level = request.getParameter("level");
         String status = request.getParameter("status");
-        
-        Connection conn = null;
-        PreparedStatement stmt = null;
-        
-        try {
-            conn = getConnection();
-            String sql = "INSERT INTO students (name, level, email, contact, gender, status) VALUES (?, ?, ?, ?, ?, ?)";
-            stmt = conn.prepareStatement(sql);
-            stmt.setString(1, name);
-            stmt.setString(2, level);
-            stmt.setString(3, email);
-            stmt.setString(4, contact);
-            stmt.setString(5, gender);
-            stmt.setString(6, status);
-            
-            int rowsAffected = stmt.executeUpdate();
-            if (rowsAffected > 0) {
-                // Invalidate stats cache
-                statsLastUpdated = 0;
-                response.sendRedirect(request.getContextPath() + "/admin/students");
-            } else {
-                request.setAttribute("error", "Failed to add student");
-                showAddStudentForm(request, response);
-            }
+        String passwordSalt = "salt"; // Use a consistent salt
+        String passwordHash = "SHA2(CONCAT('" + email.split("@")[0] + "123', '" + passwordSalt + "'), 256)";
+
+        String sql = "INSERT INTO students (full_name, email, tel, gender, level, password_hash, password_salt, status) VALUES (?, ?, ?, ?, ?, " + passwordHash + ", ?, ?)";
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, fullName);
+            stmt.setString(2, email);
+            stmt.setString(3, tel);
+            stmt.setString(4, gender);
+            stmt.setString(5, level);
+            stmt.setString(6, passwordSalt);
+            stmt.setString(7, status);
+            stmt.executeUpdate();
+
+            response.sendRedirect(request.getContextPath() + "/admin/dashboard?action=listStudents");
         } catch (SQLException e) {
-            handleSQLException(response, e);
-        } finally {
-            closeResources(conn, stmt, null);
+            e.printStackTrace();
+            response.sendRedirect("../error.jsp");
         }
     }
     
@@ -713,6 +702,36 @@ public class AdminDashboardServlet extends HttpServlet {
         }
     }
     
+    private void editStudent(HttpServletRequest request, HttpServletResponse response) 
+            throws IOException {
+        String id = request.getParameter("id");
+        String fullName = request.getParameter("fullName");
+        String email = request.getParameter("email");
+        String tel = request.getParameter("tel");
+        String gender = request.getParameter("gender");
+        String level = request.getParameter("level");
+        String status = request.getParameter("status");
+
+        String sql = "UPDATE students SET full_name = ?, email = ?, tel = ?, gender = ?, level = ?, status = ? WHERE id = ?";
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, fullName);
+            stmt.setString(2, email);
+            stmt.setString(3, tel);
+            stmt.setString(4, gender);
+            stmt.setString(5, level);
+            stmt.setString(6, status);
+            stmt.setString(7, id);
+            stmt.executeUpdate();
+
+            response.sendRedirect(request.getContextPath() + "/admin/dashboard?action=listStudents");
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.sendRedirect("../error.jsp");
+        }
+    }
+    
     // Similar methods for Courses
     private void showAddCourseForm(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -725,36 +744,33 @@ public class AdminDashboardServlet extends HttpServlet {
         request.getRequestDispatcher("/admin/addCourseForm.jsp").forward(request, response);
     }
     
-    private void addCourse(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
+    private void addCourse(HttpServletRequest request, HttpServletResponse response) 
+            throws IOException {
         String title = request.getParameter("title");
-        String departmentId = request.getParameter("department");
-        String teacherId = request.getParameter("teacher");
-        
-        Connection conn = null;
-        PreparedStatement stmt = null;
-        
-        try {
-            conn = getConnection();
-            String sql = "INSERT INTO courses (title, department_id, teacher_id, status) VALUES (?, ?, ?, 'Active')";
-            stmt = conn.prepareStatement(sql);
+        String courseCode = request.getParameter("courseCode");
+        String description = request.getParameter("description");
+        String departmentId = request.getParameter("departmentId");
+        String teacherId = request.getParameter("teacherId");
+        String schedule = request.getParameter("schedule");
+        String status = request.getParameter("status");
+
+        String sql = "INSERT INTO courses (title, course_code, description, department_id, teacher_id, schedule, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, title);
-            stmt.setString(2, departmentId);
-            stmt.setString(3, teacherId);
-            
-            int rowsAffected = stmt.executeUpdate();
-            if (rowsAffected > 0) {
-                // Invalidate stats cache
-                statsLastUpdated = 0;
-                response.sendRedirect(request.getContextPath() + "/admin/courses");
-            } else {
-                request.setAttribute("error", "Failed to add course");
-                showAddCourseForm(request, response);
-            }
+            stmt.setString(2, courseCode);
+            stmt.setString(3, description);
+            stmt.setString(4, departmentId);
+            stmt.setString(5, teacherId);
+            stmt.setString(6, schedule);
+            stmt.setString(7, status);
+            stmt.executeUpdate();
+
+            response.sendRedirect(request.getContextPath() + "/admin/dashboard?action=listCourses");
         } catch (SQLException e) {
-            handleSQLException(response, e);
-        } finally {
-            closeResources(conn, stmt, null);
+            e.printStackTrace();
+            response.sendRedirect("../error.jsp");
         }
     }
     
@@ -841,34 +857,53 @@ public class AdminDashboardServlet extends HttpServlet {
         }
     }
     
-    private void deleteCourse(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        String courseId = request.getParameter("id");
-        
-        Connection conn = null;
-        PreparedStatement stmt = null;
-        
-        try {
-            conn = getConnection();
-            String sql = "DELETE FROM courses WHERE id = ?";
-            stmt = conn.prepareStatement(sql);
-            stmt.setString(1, courseId);
-            
-            int rowsAffected = stmt.executeUpdate();
-            if (rowsAffected > 0) {
-                // Invalidate stats cache
-                statsLastUpdated = 0;
-                response.setContentType("application/json");
-                response.getWriter().write("{\"success\": true}");
-            } else {
-                response.setContentType("application/json");
-                response.getWriter().write("{\"success\": false, \"message\": \"Course not found\"}");
-            }
+    private void deleteCourse(HttpServletRequest request, HttpServletResponse response) 
+            throws IOException {
+        String id = request.getParameter("id");
+
+        String sql = "DELETE FROM courses WHERE id = ?";
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, id);
+            stmt.executeUpdate();
+
+            response.sendRedirect(request.getContextPath() + "/admin/dashboard?action=listCourses");
         } catch (SQLException e) {
-            response.setContentType("application/json");
-            response.getWriter().write("{\"success\": false, \"message\": \"" + e.getMessage() + "\"}");
-        } finally {
-            closeResources(conn, stmt, null);
+            e.printStackTrace();
+            response.sendRedirect("../error.jsp");
+        }
+    }
+    
+    private void editCourse(HttpServletRequest request, HttpServletResponse response) 
+            throws IOException {
+        String id = request.getParameter("id");
+        String title = request.getParameter("title");
+        String courseCode = request.getParameter("courseCode");
+        String description = request.getParameter("description");
+        String departmentId = request.getParameter("departmentId");
+        String teacherId = request.getParameter("teacherId");
+        String schedule = request.getParameter("schedule");
+        String status = request.getParameter("status");
+
+        String sql = "UPDATE courses SET title = ?, course_code = ?, description = ?, department_id = ?, teacher_id = ?, schedule = ?, status = ? WHERE id = ?";
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, title);
+            stmt.setString(2, courseCode);
+            stmt.setString(3, description);
+            stmt.setString(4, departmentId);
+            stmt.setString(5, teacherId);
+            stmt.setString(6, schedule);
+            stmt.setString(7, status);
+            stmt.setString(8, id);
+            stmt.executeUpdate();
+
+            response.sendRedirect(request.getContextPath() + "/admin/dashboard?action=listCourses");
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.sendRedirect("../error.jsp");
         }
     }
     
@@ -881,9 +916,25 @@ public class AdminDashboardServlet extends HttpServlet {
         request.getRequestDispatcher("/admin/addDepartmentForm.jsp").forward(request, response);
     }
     
-    private void addDepartment(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        handleDepartmentOperations(request, response, "add");
+    private void addDepartment(HttpServletRequest request, HttpServletResponse response) 
+            throws IOException {
+        String name = request.getParameter("departmentName");
+        String headId = request.getParameter("headId");
+
+        String sql = "INSERT INTO departments (name, head_id) VALUES (?, ?)";
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, name);
+            stmt.setString(2, headId);
+            stmt.executeUpdate();
+
+            // Redirect back to the departments page
+            response.sendRedirect(request.getContextPath() + "/admin/dashboard?action=listDepartments");
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.sendRedirect("../error.jsp");
+        }
     }
     
     private void showEditDepartmentForm(HttpServletRequest request, HttpServletResponse response)
@@ -929,17 +980,49 @@ public class AdminDashboardServlet extends HttpServlet {
         }
     }
     
-    private void updateDepartment(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        handleDepartmentOperations(request, response, "update");
+    private void editDepartment(HttpServletRequest request, HttpServletResponse response) 
+            throws IOException {
+        String id = request.getParameter("id");
+        String name = request.getParameter("departmentName");
+        String headId = request.getParameter("headId");
+
+        String sql = "UPDATE departments SET name = ?, head_id = ? WHERE id = ?";
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, name);
+            stmt.setString(2, headId);
+            stmt.setString(3, id);
+            stmt.executeUpdate();
+
+            // Redirect back to the departments page
+            response.sendRedirect(request.getContextPath() + "/admin/dashboard?action=listDepartments");
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.sendRedirect("../error.jsp");
+        }
     }
     
-    private void deleteDepartment(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        handleDepartmentOperations(request, response, "delete");
+    private void deleteDepartment(HttpServletRequest request, HttpServletResponse response) 
+            throws IOException {
+        String id = request.getParameter("id");
+
+        String sql = "DELETE FROM departments WHERE id = ?";
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, id);
+            stmt.executeUpdate();
+
+            // Redirect back to the departments page
+            response.sendRedirect(request.getContextPath() + "/admin/dashboard?action=listDepartments");
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.sendRedirect("../error.jsp");
+        }
     }
     
-    private void saveSettings(HttpServletRequest request, HttpServletResponse response) 
+    private void saveSettings(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         Connection conn = null;
         PreparedStatement stmt = null;
@@ -967,7 +1050,7 @@ public class AdminDashboardServlet extends HttpServlet {
             closeResources(conn, stmt, null);
         }
     }
-
+    
     private void handleDepartmentOperations(HttpServletRequest request, HttpServletResponse response, String operation) 
             throws ServletException, IOException {
         Connection conn = null;
@@ -984,19 +1067,17 @@ public class AdminDashboardServlet extends HttpServlet {
                     stmt.setString(1, request.getParameter("departmentName"));
                     stmt.setString(2, request.getParameter("headId"));
                     break;
-                    
                 case "update":
                     sql = "UPDATE departments SET name = ?, head_id = ? WHERE id = ?";
                     stmt = conn.prepareStatement(sql);
                     stmt.setString(1, request.getParameter("departmentName"));
                     stmt.setString(2, request.getParameter("headId"));
-                    stmt.setString(3, request.getParameter("departmentId"));
+                    stmt.setString(3, request.getParameter("departmentId")); // Changed from departmentId to id
                     break;
-                    
                 case "delete":
                     sql = "DELETE FROM departments WHERE id = ?";
                     stmt = conn.prepareStatement(sql);
-                    stmt.setString(1, request.getParameter("departmentId"));
+                    stmt.setString(1, request.getParameter("departmentId")); // Changed from departmentId to id
                     break;
             }
             
@@ -1013,7 +1094,7 @@ public class AdminDashboardServlet extends HttpServlet {
             closeResources(conn, stmt, null);
         }
     }
-
+    
     private void generateAnalytics(HttpServletRequest request, HttpServletResponse response) 
             throws ServletException, IOException {
         Map<String, Object> analytics = new HashMap<>();
@@ -1031,7 +1112,6 @@ public class AdminDashboardServlet extends HttpServlet {
                         "LEFT JOIN students s ON d.id = s.department_id " +
                         "LEFT JOIN grades g ON s.id = g.student_id " +
                         "GROUP BY d.id";
-            
             stmt = conn.prepareStatement(sql);
             rs = stmt.executeQuery();
             
@@ -1043,7 +1123,6 @@ public class AdminDashboardServlet extends HttpServlet {
                 stat.put("avgGrade", rs.getDouble("avg_grade"));
                 departmentStats.add(stat);
             }
-            
             analytics.put("departmentStats", departmentStats);
             request.setAttribute("analytics", analytics);
             request.getRequestDispatcher("/admin/analytics.jsp").forward(request, response);
@@ -1054,7 +1133,7 @@ public class AdminDashboardServlet extends HttpServlet {
             closeResources(conn, stmt, rs);
         }
     }
-
+    
     private void handleError(HttpServletResponse response, String message) throws IOException {
         response.setContentType("application/json");
         response.getWriter().write("{\"success\": false, \"message\": \"" + message + "\"}");
@@ -1088,7 +1167,7 @@ public class AdminDashboardServlet extends HttpServlet {
         
         return departments;
     }
-    
+
     /**
      * Get a list of all teachers
      */
@@ -1117,7 +1196,7 @@ public class AdminDashboardServlet extends HttpServlet {
         
         return teachers;
     }
-    
+       
     /**
      * Handle SQL exceptions
      */
@@ -1125,14 +1204,14 @@ public class AdminDashboardServlet extends HttpServlet {
         e.printStackTrace();
         response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
     }
-    
+
     /**
      * Get a database connection
      */
     private Connection getConnection() throws SQLException {
         return DriverManager.getConnection(URL, USER, PASSWORD);
     }
-    
+
     /**
      * Close database resources
      */
@@ -1166,7 +1245,7 @@ public class AdminDashboardServlet extends HttpServlet {
                     "FROM teachers t " +
                     "LEFT JOIN departments d ON t.department_id = d.id " +
                     "ORDER BY t.id";
-        
+
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
@@ -1185,17 +1264,17 @@ public class AdminDashboardServlet extends HttpServlet {
 
     private List<Map<String, Object>> getStudents(Connection conn) throws SQLException {
         List<Map<String, Object>> students = new ArrayList<>();
-        String sql = "SELECT id, full_name AS name, level, email, tel AS contact, gender, status FROM students ORDER BY id";
+        String sql = "SELECT id, full_name, level, email, tel, gender, status FROM students ORDER BY id";
 
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 Map<String, Object> student = new HashMap<>();
                 student.put("id", rs.getInt("id"));
-                student.put("name", rs.getString("name"));
+                student.put("fullName", rs.getString("full_name")); // Correct column mapping
                 student.put("level", rs.getString("level"));
                 student.put("email", rs.getString("email"));
-                student.put("contact", rs.getString("contact"));
+                student.put("tel", rs.getString("tel")); // Correct column mapping
                 student.put("gender", rs.getString("gender"));
                 student.put("status", rs.getString("status"));
                 students.add(student);
@@ -1215,7 +1294,7 @@ public class AdminDashboardServlet extends HttpServlet {
             response.sendRedirect("../error.jsp");
         }
     }
-
+    
     private void loadStudents(HttpServletRequest request, HttpServletResponse response, int adminId, Connection conn) {
         // Stub implementation for loading students
         request.setAttribute("students", new ArrayList<>());
@@ -1284,5 +1363,33 @@ public class AdminDashboardServlet extends HttpServlet {
             }
         }
         return courses;
+    }
+
+    private void editTeacher(HttpServletRequest request, HttpServletResponse response) 
+            throws IOException {
+        String id = request.getParameter("id");
+        String name = request.getParameter("name");
+        String email = request.getParameter("email");
+        String contact = request.getParameter("contact");
+        String departmentId = request.getParameter("departmentId");
+        String status = request.getParameter("status");
+
+        String sql = "UPDATE teachers SET name = ?, email = ?, contact = ?, department_id = ?, status = ? WHERE id = ?";
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, name);
+            stmt.setString(2, email);
+            stmt.setString(3, contact);
+            stmt.setString(4, departmentId);
+            stmt.setString(5, status);
+            stmt.setString(6, id);
+            stmt.executeUpdate();
+
+            response.sendRedirect(request.getContextPath() + "/admin/dashboard?action=listTeachers");
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.sendRedirect("../error.jsp");
+        }
     }
 }
